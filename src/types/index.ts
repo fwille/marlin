@@ -5,6 +5,14 @@ export interface INatPhoto {
   attribution?: string;
 }
 
+export interface INatConservationStatus {
+  status: string;          // e.g. "LC", "VU", "EN", "CR"
+  status_name?: string;    // e.g. "vulnerable"
+  authority?: string;      // e.g. "IUCN Red List"
+  iucn?: number;           // numeric: 10=LC 20=NT 30=VU 40=EN 50=CR 60=EW 70=EX
+  url?: string;
+}
+
 export interface INatTaxon {
   id: number;
   name: string;
@@ -15,6 +23,9 @@ export interface INatTaxon {
   iconic_taxon_name?: string;
   wikipedia_url?: string;
   wikipedia_summary?: string;
+  description?: string;
+  conservation_status?: INatConservationStatus;
+  threatened?: boolean;
   ancestors?: Array<{
     rank: string;
     name: string;
@@ -48,9 +59,9 @@ export interface Sighting {
   lng?: number;
   date: string;
   notes?: string;
-  imageUrl?: string;   // iNaturalist species photo URL
+  imageUrl?: string;       // iNaturalist species photo URL
   locationName?: string;
-  photoUri?: string;   // user's own photo (local file URI)
+  photoUris?: string[];    // user's own photos (local file URIs)
 }
 
 export function getTaxonPhotoUrl(taxon?: INatTaxon): string | undefined {

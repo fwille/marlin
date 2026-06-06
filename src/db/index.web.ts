@@ -17,6 +17,24 @@ export function dbAddSighting(s: Omit<Sighting, 'id'>): Sighting {
   return { ...s, id: -Date.now() };
 }
 
+export function dbUpdateSighting(
+  id: number,
+  updates: { lat?: number | null; lng?: number | null; locationName?: string | null; notes?: string | null; photoUris?: string[] }
+): void {
+  try {
+    const key = `marlin_sighting_${id}`;
+    const raw = localStorage.getItem(key);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    if ('lat' in updates) s.lat = updates.lat;
+    if ('lng' in updates) s.lng = updates.lng;
+    if ('locationName' in updates) s.locationName = updates.locationName;
+    if ('notes' in updates) s.notes = updates.notes;
+    if ('photoUris' in updates) s.photoUris = updates.photoUris;
+    localStorage.setItem(key, JSON.stringify(s));
+  } catch {}
+}
+
 export function dbDeleteSighting(_id: number): void {}
 
 export function dbGetSetting(key: string): string | null {
