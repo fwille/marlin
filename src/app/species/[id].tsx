@@ -177,11 +177,15 @@ function SeasonalChart({ histogram, isDark }: { histogram: MonthlyHistogram; isD
   );
 }
 
-function AncestorChip({ label }: { label: string }) {
+function AncestorChip({ label, searchQuery }: { label: string; searchQuery: string }) {
   return (
-    <View style={styles.chip}>
+    <TouchableOpacity
+      style={styles.chip}
+      onPress={() => router.push({ pathname: '/(tabs)/search', params: { q: searchQuery } })}
+      activeOpacity={0.7}>
       <Text style={styles.chipText}>{label}</Text>
-    </View>
+      <Ionicons name="search-outline" size={12} color="#006994" style={{ opacity: 0.7 }} />
+    </TouchableOpacity>
   );
 }
 
@@ -555,16 +559,28 @@ export default function SpeciesDetailScreen() {
           <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Classification</Text>
           <View style={styles.chipRow}>
             {taxonClass && (
-              <AncestorChip label={`Class: ${taxonClass.preferred_common_name ?? taxonClass.name}`} />
+              <AncestorChip
+                label={`Class: ${taxonClass.preferred_common_name ?? taxonClass.name}`}
+                searchQuery={taxonClass.name}
+              />
             )}
             {order && (
-              <AncestorChip label={`Order: ${order.preferred_common_name ?? order.name}`} />
+              <AncestorChip
+                label={`Order: ${order.preferred_common_name ?? order.name}`}
+                searchQuery={order.name}
+              />
             )}
             {family && (
-              <AncestorChip label={`Family: ${family.preferred_common_name ?? family.name}`} />
+              <AncestorChip
+                label={`Family: ${family.preferred_common_name ?? family.name}`}
+                searchQuery={family.name}
+              />
             )}
             {taxon.iconic_taxon_name && (
-              <AncestorChip label={taxon.iconic_taxon_name} />
+              <AncestorChip
+                label={taxon.iconic_taxon_name}
+                searchQuery={taxon.iconic_taxon_name}
+              />
             )}
           </View>
 

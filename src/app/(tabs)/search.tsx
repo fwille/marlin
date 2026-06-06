@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSearch } from '@/hooks/useSearch';
 import { useLifelist } from '@/store/lifelist';
@@ -59,8 +59,13 @@ function TaxonCard({ taxon }: { taxon: INatTaxon }) {
 export default function SearchScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
-  const [query, setQuery] = useState('');
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [query, setQuery] = useState(q ?? '');
   const { data, isLoading, isFetching } = useSearch(query);
+
+  useEffect(() => {
+    if (q) setQuery(q);
+  }, [q]);
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
