@@ -211,6 +211,29 @@ export default function SettingsScreen() {
           )}
         </View>
 
+        {/* Backup coverage info */}
+        <View style={[styles.infoBox, isDark && styles.infoBoxDark]}>
+          <Text style={[styles.infoTitle, isDark && styles.infoTitleDark]}>What is backed up?</Text>
+          <View style={styles.infoRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#2e7d32" style={styles.infoIcon} />
+            <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+              Sighting records — species, date, location, notes
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="checkmark-circle" size={15} color="#2e7d32" style={styles.infoIcon} />
+            <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+              Species reference photos from iNaturalist
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="close-circle" size={15} color="#c62828" style={styles.infoIcon} />
+            <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+              Photos you took yourself — these are stored on your device and must be backed up separately (e.g. via Google Photos)
+            </Text>
+          </View>
+        </View>
+
         {/* About */}
         <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>ABOUT</Text>
         <View style={[styles.card, isDark && styles.cardDark]}>
@@ -332,6 +355,17 @@ const styles = StyleSheet.create({
     color: '#111', height: 160, textAlignVertical: 'top',
   },
   pasteInputDark: { borderColor: '#1e3050', backgroundColor: '#0a1628', color: '#fff' },
+  infoBox: {
+    marginHorizontal: 16, marginTop: 10,
+    backgroundColor: '#f0f4f8', borderRadius: 12, padding: 14, gap: 8,
+  },
+  infoBoxDark: { backgroundColor: '#0d1e33' },
+  infoTitle: { fontSize: 12, fontWeight: '700', color: '#555', marginBottom: 2 },
+  infoTitleDark: { color: '#8899aa' },
+  infoRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  infoIcon: { marginTop: 1 },
+  infoText: { flex: 1, fontSize: 12, color: '#555', lineHeight: 18 },
+  infoTextDark: { color: '#8899aa' },
   restoreBtn: {
     backgroundColor: OCEAN_BLUE, borderRadius: 12,
     paddingVertical: 14, alignItems: 'center',
