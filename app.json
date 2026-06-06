@@ -21,6 +21,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
+      "allowBackup": true,
       "predictiveBackGestureEnabled": false,
       "package": "com.marlinid.marlin"
     },
@@ -47,7 +48,9 @@
           "photosPermission": "Allow Marlin to access your photos to attach to sightings.",
           "cameraPermission": "Allow Marlin to use the camera to photograph your sightings."
         }
-      ]
+      ],
+      "expo-sharing",
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

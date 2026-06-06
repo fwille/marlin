@@ -121,3 +121,25 @@ export function dbDeleteSighting(id: number): void {
   const db = getDb();
   db.runSync('DELETE FROM sightings WHERE id = ?', id);
 }
+
+export function dbClearAllSightings(): void {
+  getDb().runSync('DELETE FROM sightings');
+}
+
+export function dbImportSightings(sightings: Omit<Sighting, 'id'>[]): void {
+  const db = getDb();
+  db.withTransactionSync(() => {
+    db.runSync('DELETE FROM sightings');
+    for (const s of sightings) {
+      db.runSync(
+        `INSERT INTO sightings
+           (species_id, scientific_name, common_name, lat, lng, date, notes, image_url, location_name, photo_uris)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        s.speciesId, s.scientificName, s.commonName ?? null,
+        s.lat ?? null, s.lng ?? null, s.date, s.notes ?? null,
+        s.imageUrl ?? null, s.locationName ?? null,
+        s.photoUris ? JSON.stringify(s.photoUris) : null
+      );
+    }
+  });
+}

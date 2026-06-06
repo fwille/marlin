@@ -11,7 +11,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
 
@@ -110,9 +110,7 @@ export default function SightingsMap() {
           const uri = p.photoUri;
           if (!uri || (!uri.startsWith('file://') && !uri.startsWith('content://'))) return p;
           try {
-            const b64 = await FileSystem.readAsStringAsync(uri, {
-              encoding: FileSystem.EncodingType.Base64,
-            });
+            const b64 = await new File(uri).base64();
             return { ...p, photoUri: `data:image/jpeg;base64,${b64}` };
           } catch {
             return { ...p, photoUri: '' };

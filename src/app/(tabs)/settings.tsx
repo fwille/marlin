@@ -1,10 +1,27 @@
-import { View, Text, TouchableOpacity, StyleSheet, Linking } from 'react-native';
+import { useState, useEffect } from 'react';
+import {
+  View, Text, TouchableOpacity, StyleSheet, Linking,
+  Alert, ScrollView, Switch, Platform,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as Sharing from 'expo-sharing';
+import * as DocumentPicker from 'expo-document-picker';
+import { File, Paths } from 'expo-file-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeStore, ThemePreference } from '@/store/theme';
+import { useLifelist } from '@/store/lifelist';
+import { dbGetAllSightings, dbImportSightings, dbGetSetting, dbSetSetting } from '@/db';
+import { Sighting } from '@/types';
 
 const OCEAN_BLUE = '#006994';
+const BACKUP_SETTING = 'backup_allowed';
+
+interface BackupFile {
+  version: 1;
+  exportedAt: string;
+  sightings: Omit<Sighting, 'id'>[];
+}
 
 const THEMES: { value: ThemePreference; label: string; icon: string; description: string }[] = [
   { value: 'system',  label: 'System default', icon: 'phone-portrait-outline', description: 'Follow device setting' },
@@ -17,70 +34,217 @@ export default function SettingsScreen() {
   const isDark = scheme === 'dark';
   const preference = useThemeStore(s => s.preference);
   const setTheme = useThemeStore(s => s.setTheme);
+  const loadLifelist = useLifelist(s => s.load);
+
+  const [backupEnabled, setBackupEnabled] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setBackupEnabled(dbGetSetting(BACKUP_SETTING) !== 'false');
+  }, []);
+
+  const toggleBackup = (value: boolean) => {
+    if (!value) {
+      Alert.alert(
+        'Disable Auto Backup?',
+        'Your life list will no longer be backed up automatically by Android. Use Export to save your data manually.',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Disable',
+            style: 'destructive',
+            onPress: () => { dbSetSetting(BACKUP_SETTING, 'false'); setBackupEnabled(false); },
+          },
+        ]
+      );
+    } else {
+      dbSetSetting(BACKUP_SETTING, 'true');
+      setBackupEnabled(true);
+    }
+  };
+
+  const handleExport = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const sightings = dbGetAllSightings();
+      if (sightings.length === 0) {
+        Alert.alert('Nothing to export', 'Your life list is empty.');
+        return;
+      }
+      const backup: BackupFile = {
+        version: 1,
+        exportedAt: new Date().toISOString(),
+        // Strip local photoUris — file:// paths are device-specific and won't transfer.
+        sightings: sightings.map(({ id: _id, photoUris: _photos, ...rest }) => rest),
+      };
+      const file = new File(Paths.document, 'marlin-backup.json');
+      file.write(JSON.stringify(backup, null, 2));
+      await Sharing.shareAsync(file.uri, {
+        mimeType: 'application/json',
+        dialogTitle: 'Save Marlin life list backup',
+      });
+    } catch (e) {
+      Alert.alert('Export failed', String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleImport = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: 'application/json',
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const raw = await new File(result.assets[0].uri).text();
+      const data: BackupFile = JSON.parse(raw);
+      if (data.version !== 1 || !Array.isArray(data.sightings)) {
+        Alert.alert('Invalid backup file', 'This file does not appear to be a Marlin backup.');
+        return;
+      }
+      Alert.alert(
+        'Restore life list?',
+        `This will replace your current life list with ${data.sightings.length} sighting${data.sightings.length !== 1 ? 's' : ''} from the backup.\n\nExported: ${new Date(data.exportedAt).toLocaleDateString()}`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Restore',
+            onPress: () => {
+              dbImportSightings(data.sightings);
+              loadLifelist();
+              Alert.alert('Restored', `${data.sightings.length} sighting${data.sightings.length !== 1 ? 's' : ''} imported.`);
+            },
+          },
+        ]
+      );
+    } catch (e) {
+      Alert.alert('Import failed', String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
-      <View style={styles.header}>
-        <Text style={[styles.title, isDark && styles.textDark]}>Settings</Text>
-      </View>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <View style={styles.header}>
+          <Text style={[styles.title, isDark && styles.textDark]}>Settings</Text>
+        </View>
 
-      {/* Appearance */}
-      <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>APPEARANCE</Text>
-      <View style={[styles.card, isDark && styles.cardDark]}>
-        {THEMES.map((t, i) => {
-          const active = preference === t.value;
-          return (
-            <TouchableOpacity
-              key={t.value}
-              style={[
-                styles.row,
-                i < THEMES.length - 1 && [styles.rowBorder, isDark && styles.rowBorderDark],
-              ]}
-              onPress={() => setTheme(t.value)}>
-              <View style={[styles.iconWrap, active && styles.iconWrapActive]}>
-                <Ionicons
-                  name={t.icon as any}
-                  size={20}
-                  color={active ? '#fff' : (isDark ? '#aaa' : '#555')}
-                />
+        {/* Appearance */}
+        <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>APPEARANCE</Text>
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          {THEMES.map((t, i) => {
+            const active = preference === t.value;
+            return (
+              <TouchableOpacity
+                key={t.value}
+                style={[
+                  styles.row,
+                  i < THEMES.length - 1 && [styles.rowBorder, isDark && styles.rowBorderDark],
+                ]}
+                onPress={() => setTheme(t.value)}>
+                <View style={[styles.iconWrap, active && styles.iconWrapActive]}>
+                  <Ionicons
+                    name={t.icon as any}
+                    size={20}
+                    color={active ? '#fff' : (isDark ? '#aaa' : '#555')}
+                  />
+                </View>
+                <View style={styles.rowText}>
+                  <Text style={[styles.rowLabel, isDark && styles.textDark]}>{t.label}</Text>
+                  <Text style={styles.rowSub}>{t.description}</Text>
+                </View>
+                {active && <Ionicons name="checkmark" size={20} color={OCEAN_BLUE} />}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Data */}
+        <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>DATA</Text>
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          <TouchableOpacity
+            style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}
+            onPress={handleExport}
+            disabled={busy}>
+            <View style={[styles.iconWrap, { backgroundColor: '#e6f4ea' }]}>
+              <Ionicons name="arrow-up-circle-outline" size={20} color="#2e7d32" />
+            </View>
+            <View style={styles.rowText}>
+              <Text style={[styles.rowLabel, isDark && styles.textDark]}>Export life list</Text>
+              <Text style={styles.rowSub}>Save a backup file to share or store</Text>
+            </View>
+            <Ionicons name="share-outline" size={18} color={isDark ? '#555' : '#bbb'} />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}
+            onPress={handleImport}
+            disabled={busy}>
+            <View style={[styles.iconWrap, { backgroundColor: '#fff3e0' }]}>
+              <Ionicons name="arrow-down-circle-outline" size={20} color="#e65100" />
+            </View>
+            <View style={styles.rowText}>
+              <Text style={[styles.rowLabel, isDark && styles.textDark]}>Import life list</Text>
+              <Text style={styles.rowSub}>Restore from a backup file (replaces current data)</Text>
+            </View>
+            <Ionicons name="folder-open-outline" size={18} color={isDark ? '#555' : '#bbb'} />
+          </TouchableOpacity>
+
+          {Platform.OS === 'android' && (
+            <View style={styles.row}>
+              <View style={[styles.iconWrap, { backgroundColor: '#e8f0fb' }]}>
+                <Ionicons name="cloud-outline" size={20} color="#1a73e8" />
               </View>
               <View style={styles.rowText}>
-                <Text style={[styles.rowLabel, isDark && styles.textDark]}>{t.label}</Text>
-                <Text style={styles.rowSub}>{t.description}</Text>
+                <Text style={[styles.rowLabel, isDark && styles.textDark]}>Android Auto Backup</Text>
+                <Text style={styles.rowSub}>
+                  {backupEnabled
+                    ? 'Life list backed up to your Google account'
+                    : 'Auto backup disabled — use Export to save manually'}
+                </Text>
               </View>
-              {active && (
-                <Ionicons name="checkmark" size={20} color={OCEAN_BLUE} />
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {/* About */}
-      <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>ABOUT</Text>
-      <View style={[styles.card, isDark && styles.cardDark]}>
-        <View style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="person-outline" size={20} color={isDark ? '#aaa' : '#555'} />
-          </View>
-          <View style={styles.rowText}>
-            <Text style={[styles.rowLabel, isDark && styles.textDark]}>Developer</Text>
-            <Text style={styles.rowSub}>Fiona Wille</Text>
-          </View>
+              <Switch
+                value={backupEnabled}
+                onValueChange={toggleBackup}
+                trackColor={{ true: OCEAN_BLUE, false: undefined }}
+                thumbColor="#fff"
+              />
+            </View>
+          )}
         </View>
-        <TouchableOpacity
-          style={styles.row}
-          onPress={() => Linking.openURL('https://www.inaturalist.org')}>
-          <View style={styles.iconWrap}>
-            <Ionicons name="leaf-outline" size={20} color={isDark ? '#aaa' : '#555'} />
+
+        {/* About */}
+        <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>ABOUT</Text>
+        <View style={[styles.card, isDark && styles.cardDark]}>
+          <View style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}>
+            <View style={styles.iconWrap}>
+              <Ionicons name="person-outline" size={20} color={isDark ? '#aaa' : '#555'} />
+            </View>
+            <View style={styles.rowText}>
+              <Text style={[styles.rowLabel, isDark && styles.textDark]}>Developer</Text>
+              <Text style={styles.rowSub}>Fiona Wille</Text>
+            </View>
           </View>
-          <View style={styles.rowText}>
-            <Text style={[styles.rowLabel, isDark && styles.textDark]}>Species data</Text>
-            <Text style={styles.rowSub}>iNaturalist · © contributors, CC BY-NC</Text>
-          </View>
-          <Ionicons name="open-outline" size={16} color={isDark ? '#555' : '#bbb'} />
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            style={styles.row}
+            onPress={() => Linking.openURL('https://www.inaturalist.org')}>
+            <View style={styles.iconWrap}>
+              <Ionicons name="leaf-outline" size={20} color={isDark ? '#aaa' : '#555'} />
+            </View>
+            <View style={styles.rowText}>
+              <Text style={[styles.rowLabel, isDark && styles.textDark]}>Species data</Text>
+              <Text style={styles.rowSub}>iNaturalist · © contributors, CC BY-NC</Text>
+            </View>
+            <Ionicons name="open-outline" size={16} color={isDark ? '#555' : '#bbb'} />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -88,6 +252,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f8fa' },
   containerDark: { backgroundColor: '#0A1628' },
+  scroll: { paddingBottom: 40 },
   header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 },
   title: { fontSize: 28, fontWeight: '700', color: '#111' },
   textDark: { color: '#fff' },

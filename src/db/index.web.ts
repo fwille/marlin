@@ -37,6 +37,10 @@ export function dbUpdateSighting(
 
 export function dbDeleteSighting(_id: number): void {}
 
+export function dbClearAllSightings(): void {}
+
+export function dbImportSightings(_sightings: Omit<Sighting, 'id'>[]): void {}
+
 export function dbGetSetting(key: string): string | null {
   try { return localStorage.getItem(`marlin_${key}`); } catch { return null; }
 }
