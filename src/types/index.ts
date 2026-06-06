@@ -27,6 +27,7 @@ export interface INatTaxon {
   conservation_status?: INatConservationStatus;
   threatened?: boolean;
   ancestors?: Array<{
+    id: number;
     rank: string;
     name: string;
     preferred_common_name?: string;

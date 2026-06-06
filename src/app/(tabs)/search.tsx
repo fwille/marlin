@@ -13,7 +13,9 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useQuery } from '@tanstack/react-query';
 import { useSearch } from '@/hooks/useSearch';
+import { searchTaxaInAncestor } from '@/api/inaturalist';
 import { useLifelist } from '@/store/lifelist';
 import { INatTaxon, getTaxonPhotoUrl } from '@/types';
 
@@ -59,13 +61,34 @@ function TaxonCard({ taxon }: { taxon: INatTaxon }) {
 export default function SearchScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
-  const { q } = useLocalSearchParams<{ q?: string }>();
+
+  const { q, ancestorId: ancestorIdParam, ancestorLabel } = useLocalSearchParams<{
+    q?: string;
+    ancestorId?: string;
+    ancestorLabel?: string;
+  }>();
+
+  const ancestorId = ancestorIdParam ? parseInt(ancestorIdParam, 10) : null;
+
   const [query, setQuery] = useState(q ?? '');
-  const { data, isLoading, isFetching } = useSearch(query);
 
   useEffect(() => {
     if (q) setQuery(q);
   }, [q]);
+
+  // When browsing within an ancestor group, use ancestor-scoped search.
+  // Otherwise fall back to the global marine taxa fan-out search.
+  const ancestorQuery = useQuery({
+    queryKey: ['search-ancestor', ancestorId, query],
+    queryFn: () => searchTaxaInAncestor(ancestorId!, query || undefined),
+    enabled: ancestorId !== null,
+    staleTime: 10 * 60 * 1000,
+    placeholderData: prev => prev,
+  });
+
+  const globalQuery = useSearch(query);
+
+  const { data, isLoading, isFetching } = ancestorId !== null ? ancestorQuery : globalQuery;
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
@@ -73,13 +96,28 @@ export default function SearchScreen() {
         <Text style={[styles.title, isDark && styles.textDark]}>Search</Text>
       </View>
 
+      {/* Ancestor scope banner */}
+      {ancestorId !== null && ancestorLabel && (
+        <View style={[styles.scopeBanner, isDark && styles.scopeBannerDark]}>
+          <Ionicons name="filter" size={14} color={OCEAN_BLUE} />
+          <Text style={[styles.scopeLabel, isDark && styles.scopeLabelDark]} numberOfLines={1}>
+            {ancestorLabel}
+          </Text>
+          <TouchableOpacity
+            hitSlop={8}
+            onPress={() => router.setParams({ ancestorId: undefined, ancestorLabel: undefined })}>
+            <Ionicons name="close-circle" size={18} color={isDark ? '#556' : '#aaa'} />
+          </TouchableOpacity>
+        </View>
+      )}
+
       <View style={[styles.searchBar, isDark && styles.searchBarDark]}>
         <Ionicons name="search" size={18} color="#888" style={styles.searchIcon} />
         <TextInput
           style={[styles.searchInput, isDark && styles.searchInputDark]}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search marine species…"
+          placeholder={ancestorId ? 'Filter within group…' : 'Search marine species…'}
           placeholderTextColor="#999"
           autoCapitalize="none"
           clearButtonMode="while-editing"
@@ -95,7 +133,19 @@ export default function SearchScreen() {
         contentContainerStyle={styles.list}
         keyboardDismissMode="on-drag"
         ListEmptyComponent={
-          query.trim().length < 2 ? (
+          ancestorId !== null ? (
+            isLoading ? (
+              <View style={styles.empty}>
+                <ActivityIndicator size="large" color={OCEAN_BLUE} />
+              </View>
+            ) : (
+              <View style={styles.empty}>
+                <Text style={[styles.emptyHint, isDark && { color: '#aaa' }]}>
+                  No species found
+                </Text>
+              </View>
+            )
+          ) : query.trim().length < 2 ? (
             <View style={styles.empty}>
               <Ionicons name="fish-outline" size={56} color="#ccc" />
               <Text style={[styles.emptyTitle, isDark && styles.textDark]}>
@@ -129,6 +179,21 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   title: { fontSize: 28, fontWeight: '700', color: '#111' },
   textDark: { color: '#fff' },
+  scopeBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginHorizontal: 16,
+    marginBottom: 6,
+    backgroundColor: '#e0eef5',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignSelf: 'flex-start',
+  },
+  scopeBannerDark: { backgroundColor: '#0d2035' },
+  scopeLabel: { fontSize: 13, color: OCEAN_BLUE, fontWeight: '600', flex: 1 },
+  scopeLabelDark: { color: '#5ab4d8' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -108,6 +108,22 @@ export async function searchTaxa(query: string): Promise<INatTaxon[]> {
 }
 
 /**
+ * Search for species within a specific ancestor taxon (family / order / class).
+ * When query is empty, returns the most-observed species in that group.
+ */
+export async function searchTaxaInAncestor(ancestorId: number, query?: string): Promise<INatTaxon[]> {
+  const params = new URLSearchParams({
+    taxon_id: ancestorId.toString(),
+    photos: 'true',
+    per_page: '30',
+    rank: 'species',
+  });
+  if (query?.trim()) params.set('q', query.trim());
+  const data = await apiFetch<{ results: INatTaxon[] }>('/taxa', params);
+  return data.results;
+}
+
+/**
  * Full taxon details including ancestors (family, order, class) and extra photos.
  */
 export async function getTaxon(id: number): Promise<INatTaxon> {

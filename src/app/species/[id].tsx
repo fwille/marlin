@@ -177,14 +177,13 @@ function SeasonalChart({ histogram, isDark }: { histogram: MonthlyHistogram; isD
   );
 }
 
-function AncestorChip({ label, searchQuery }: { label: string; searchQuery: string }) {
+function AncestorChip({ label, ancestorId }: { label: string; ancestorId: number }) {
   return (
     <TouchableOpacity
       style={styles.chip}
-      onPress={() => router.push({ pathname: '/(tabs)/search', params: { q: searchQuery } })}
+      onPress={() => router.push({ pathname: '/(tabs)/search', params: { ancestorId: ancestorId.toString(), ancestorLabel: label } })}
       activeOpacity={0.7}>
       <Text style={styles.chipText}>{label}</Text>
-      <Ionicons name="search-outline" size={12} color="#006994" style={{ opacity: 0.7 }} />
     </TouchableOpacity>
   );
 }
@@ -561,25 +560,19 @@ export default function SpeciesDetailScreen() {
             {taxonClass && (
               <AncestorChip
                 label={`Class: ${taxonClass.preferred_common_name ?? taxonClass.name}`}
-                searchQuery={taxonClass.name}
+                ancestorId={taxonClass.id}
               />
             )}
             {order && (
               <AncestorChip
                 label={`Order: ${order.preferred_common_name ?? order.name}`}
-                searchQuery={order.name}
+                ancestorId={order.id}
               />
             )}
             {family && (
               <AncestorChip
                 label={`Family: ${family.preferred_common_name ?? family.name}`}
-                searchQuery={family.name}
-              />
-            )}
-            {taxon.iconic_taxon_name && (
-              <AncestorChip
-                label={taxon.iconic_taxon_name}
-                searchQuery={taxon.iconic_taxon_name}
+                ancestorId={family.id}
               />
             )}
           </View>
