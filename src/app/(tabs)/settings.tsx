@@ -221,12 +221,6 @@ export default function SettingsScreen() {
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="checkmark-circle" size={15} color="#2e7d32" style={styles.infoIcon} />
-            <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Species reference photos from iNaturalist
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
             <Ionicons name="close-circle" size={15} color="#c62828" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
               Photos you took yourself — these are stored on your device and must be backed up separately (e.g. via Google Photos)
