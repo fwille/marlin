@@ -1,13 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Linking,
-  Alert, ScrollView, Switch, Platform,
+  Alert, ScrollView, Switch, Platform, Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Sharing from 'expo-sharing';
 import * as DocumentPicker from 'expo-document-picker';
-import { File, Paths } from 'expo-file-system';
+import { File } from 'expo-file-system';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeStore, ThemePreference } from '@/store/theme';
 import { useLifelist } from '@/store/lifelist';
@@ -78,11 +77,9 @@ export default function SettingsScreen() {
         // Strip local photoUris — file:// paths are device-specific and won't transfer.
         sightings: sightings.map(({ id: _id, photoUris: _photos, ...rest }) => rest),
       };
-      const file = new File(Paths.document, 'marlin-backup.json');
-      file.write(JSON.stringify(backup, null, 2));
-      await Sharing.shareAsync(file.uri, {
-        mimeType: 'application/json',
-        dialogTitle: 'Save Marlin life list backup',
+      await Share.share({
+        title: 'Marlin life list backup',
+        message: JSON.stringify(backup, null, 2),
       });
     } catch (e) {
       Alert.alert('Export failed', String(e));
