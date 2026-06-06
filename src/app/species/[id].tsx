@@ -9,26 +9,40 @@ import {
   Modal,
   ActivityIndicator,
   StyleSheet,
-  useColorScheme,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { ZoomableImage } from '@/components/ZoomableImage';
+import { useColorScheme } from '@/hooks/use-color-scheme';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
-import { getTaxon, getRecentObservations, getMonthlyHistogram, getWikipediaSummary } from '@/api/inaturalist';
+import { getTaxon, getRecentObservations, getMonthlyHistogram, getWikipediaSummary, getIucnStatus, HAS_IUCN_TOKEN } from '@/api/inaturalist';
 import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
-import { getTaxonPhotoUrl, INatTaxon, MonthlyHistogram } from '@/types';
+import { getTaxonPhotoUrl, INatTaxon, INatConservationStatus, MonthlyHistogram } from '@/types';
 import LocationPicker, { PickedLocation } from '@/components/LocationPicker';
 import DistributionMap from '@/components/DistributionMap';
 
 const OCEAN_BLUE = '#006994';
 const MONTHS = ['J','F','M','A','M','J','J','A','S','O','N','D'];
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 const CHART_H = 100;
 const YAXIS_W = 36;
+
+function likelihood(v: number, max: number): string | null {
+  if (v === 0) return 'Not recorded';
+  // Suppress relative labels when the chart is based on very few observations —
+  // "Very common" is misleading if the peak month only has 5 sightings.
+  if (max < 30) return null;
+  const pct = v / max;
+  if (pct > 0.66) return 'Very common';
+  if (pct > 0.33) return 'Common';
+  if (pct > 0.1) return 'Occasionally seen';
+  return 'Rarely seen';
+}
 
 function stripHtml(html: string): string {
   return html
@@ -49,59 +63,114 @@ function fmtCount(n: number): string {
 }
 
 function SeasonalChart({ histogram, isDark }: { histogram: MonthlyHistogram; isDark: boolean }) {
+  const currentMonth = new Date().getMonth(); // 0-indexed
+  const [selected, setSelected] = useState(currentMonth);
+
   const values = MONTHS.map((_, i) => histogram[String(i + 1)] ?? 0);
   const max = Math.max(...values, 1);
   const gridColor = isDark ? '#1e3050' : '#e8ecf0';
   const labelColor = isDark ? '#556' : '#aaa';
 
-  // Three gridlines at top (max), middle (max/2), bottom (0)
   const ticks = [
     { label: fmtCount(max), y: 0 },
     { label: fmtCount(Math.round(max / 2)), y: CHART_H / 2 },
     { label: '0', y: CHART_H - 1 },
   ];
 
+  const likelihoodLabel = likelihood(values[selected], max);
+
   return (
-    <View style={{ flexDirection: 'row' }}>
-      {/* Y-axis labels */}
-      <View style={{ width: YAXIS_W, height: CHART_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
-        {ticks.map((t, i) => (
-          <Text key={i} style={{ fontSize: 9, color: labelColor, lineHeight: 11 }}>
-            {t.label}
+    <View>
+      {/* Tooltip row — always visible, shows selected month */}
+      <View style={{ paddingLeft: YAXIS_W, marginBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+        <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? '#fff' : '#111' }}>
+          {MONTH_NAMES[selected]}{selected === currentMonth ? ' · now' : ''}
+        </Text>
+        <View style={{ backgroundColor: OCEAN_BLUE, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+          <Text style={{ fontSize: 11, color: '#fff', fontWeight: '600' }}>
+            {fmtCount(values[selected])} obs
           </Text>
-        ))}
+        </View>
+        {likelihoodLabel !== null && (
+          <Text style={{ fontSize: 12, color: isDark ? '#aaa' : '#666' }}>
+            {likelihoodLabel}
+          </Text>
+        )}
       </View>
 
-      {/* Bar area + month labels */}
-      <View style={{ flex: 1 }}>
-        <View style={{ height: CHART_H, flexDirection: 'row', position: 'relative' }}>
-          {/* Gridlines */}
+      <View style={{ flexDirection: 'row' }}>
+        {/* Y-axis labels */}
+        <View style={{ width: YAXIS_W, height: CHART_H, justifyContent: 'space-between', alignItems: 'flex-end', paddingRight: 5 }}>
           {ticks.map((t, i) => (
-            <View
-              key={i}
-              pointerEvents="none"
-              style={{ position: 'absolute', left: 0, right: 0, top: t.y, height: 1, backgroundColor: gridColor }}
-            />
-          ))}
-
-          {/* Bars */}
-          {values.map((v, i) => {
-            const h = v > 0 ? Math.max((v / max) * CHART_H, 3) : 0;
-            return (
-              <View key={i} style={{ flex: 1, height: CHART_H, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 1 }}>
-                <View style={{ width: '75%', height: h, backgroundColor: OCEAN_BLUE, borderRadius: 2, opacity: v === 0 ? 0.15 : 1 }} />
-              </View>
-            );
-          })}
-        </View>
-
-        {/* Month labels */}
-        <View style={{ flexDirection: 'row', marginTop: 4 }}>
-          {MONTHS.map((m, i) => (
-            <Text key={i} style={{ flex: 1, textAlign: 'center', fontSize: 9, color: labelColor }}>
-              {m}
+            <Text key={i} style={{ fontSize: 9, color: labelColor, lineHeight: 11 }}>
+              {t.label}
             </Text>
           ))}
+        </View>
+
+        {/* Bar area + month labels */}
+        <View style={{ flex: 1 }}>
+          <View style={{ height: CHART_H, flexDirection: 'row', position: 'relative' }}>
+            {/* Gridlines */}
+            {ticks.map((t, i) => (
+              <View
+                key={i}
+                pointerEvents="none"
+                style={{ position: 'absolute', left: 0, right: 0, top: t.y, height: 1, backgroundColor: gridColor }}
+              />
+            ))}
+
+            {/* Bars */}
+            {values.map((v, i) => {
+              const h = v > 0 ? Math.max((v / max) * CHART_H, 3) : 0;
+              const isCurrent = i === currentMonth;
+              const isSelected = i === selected;
+              return (
+                <TouchableOpacity
+                  key={i}
+                  activeOpacity={0.7}
+                  onPress={() => setSelected(i)}
+                  style={{ flex: 1, height: CHART_H, justifyContent: 'flex-end', alignItems: 'center', paddingHorizontal: 1 }}>
+                  {/* Current month column highlight */}
+                  {isCurrent && (
+                    <View
+                      pointerEvents="none"
+                      style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, backgroundColor: isDark ? '#0a2818' : '#edfbf3', borderRadius: 4 }}
+                    />
+                  )}
+                  <View style={{
+                    width: '75%',
+                    height: Math.max(h, 2),
+                    backgroundColor: isSelected && isCurrent ? '#26d07c' : isSelected ? '#2ab4e8' : isCurrent ? '#2ecc71' : OCEAN_BLUE,
+                    borderRadius: 2,
+                    opacity: v === 0 ? (isSelected ? 0.4 : 0.15) : 1,
+                  }} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* Month labels */}
+          <View style={{ flexDirection: 'row', marginTop: 4 }}>
+            {MONTHS.map((m, i) => {
+              const isCurrent = i === currentMonth;
+              const isSelected = i === selected;
+              return (
+                <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{
+                    fontSize: 9,
+                    color: isCurrent ? '#2ecc71' : isSelected ? OCEAN_BLUE : labelColor,
+                    fontWeight: (isCurrent || isSelected) ? '700' : '400',
+                  }}>
+                    {m}
+                  </Text>
+                  {isCurrent && (
+                    <View style={{ width: 3, height: 3, borderRadius: 2, backgroundColor: '#2ecc71', marginTop: 1 }} />
+                  )}
+                </View>
+              );
+            })}
+          </View>
         </View>
       </View>
     </View>
@@ -116,11 +185,43 @@ function AncestorChip({ label }: { label: string }) {
   );
 }
 
+const IUCN_COLORS: Record<string, { bg: string; text: string }> = {
+  EX: { bg: '#111', text: '#fff' },
+  EW: { bg: '#542788', text: '#fff' },
+  CR: { bg: '#d73027', text: '#fff' },
+  EN: { bg: '#f46d43', text: '#fff' },
+  VU: { bg: '#fdae61', text: '#333' },
+  NT: { bg: '#fee090', text: '#333' },
+  LC: { bg: '#4dac26', text: '#fff' },
+  DD: { bg: '#aaa', text: '#fff' },
+};
+
+function ConservationBadge({ status, isDark }: { status: INatConservationStatus; isDark: boolean }) {
+  const code = status.status?.toUpperCase() ?? 'DD';
+  const colors = IUCN_COLORS[code] ?? IUCN_COLORS.DD;
+  const label = status.status_name
+    ? status.status_name.charAt(0).toUpperCase() + status.status_name.slice(1)
+    : code;
+  return (
+    <View style={[styles.conservationRow, isDark && styles.conservationRowDark]}>
+      <View style={[styles.iucnBadge, { backgroundColor: colors.bg }]}>
+        <Text style={[styles.iucnCode, { color: colors.text }]}>{code}</Text>
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.iucnLabel, isDark && styles.textDark]}>{label}</Text>
+        {status.authority && (
+          <Text style={styles.iucnAuthority}>{status.authority}</Text>
+        )}
+      </View>
+    </View>
+  );
+}
+
 interface SightingData {
   notes: string;
   locationName: string;
   coords: PickedLocation | null;
-  photoUri?: string;
+  photoUris: string[];
 }
 
 function AddSightingModal({
@@ -139,7 +240,7 @@ function AddSightingModal({
   const [notes, setNotes] = useState('');
   const [locationName, setLocationName] = useState('');
   const [coords, setCoords] = useState<PickedLocation | null>(null);
-  const [photoUri, setPhotoUri] = useState<string | undefined>();
+  const [photoUris, setPhotoUris] = useState<string[]>([]);
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
@@ -164,10 +265,9 @@ function AddSightingModal({
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.7,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsMultipleSelection: true,
     });
-    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+    if (!result.canceled) setPhotoUris(prev => [...prev, ...result.assets.map(a => a.uri)]);
   };
 
   const handleTakePhoto = async () => {
@@ -181,15 +281,15 @@ function AddSightingModal({
       allowsEditing: true,
       aspect: [4, 3],
     });
-    if (!result.canceled) setPhotoUri(result.assets[0].uri);
+    if (!result.canceled) setPhotoUris(prev => [...prev, result.assets[0].uri]);
   };
 
   const handleAdd = () => {
-    onAdd({ notes: notes.trim(), locationName: locationName.trim(), coords, photoUri });
+    onAdd({ notes: notes.trim(), locationName: locationName.trim(), coords, photoUris });
     setNotes('');
     setLocationName('');
     setCoords(null);
-    setPhotoUri(undefined);
+    setPhotoUris([]);
   };
 
   return (
@@ -237,16 +337,16 @@ function AddSightingModal({
               <Ionicons name="camera-outline" size={20} color={OCEAN_BLUE} />
               <Text style={styles.photoBtnText}>Camera</Text>
             </TouchableOpacity>
-            {photoUri && (
-              <View style={styles.photoPreviewWrapper}>
-                <Image source={{ uri: photoUri }} style={styles.photoPreview} />
+            {photoUris.map((uri, i) => (
+              <View key={uri} style={styles.photoPreviewWrapper}>
+                <Image source={{ uri }} style={styles.photoPreview} />
                 <TouchableOpacity
                   style={styles.photoRemove}
-                  onPress={() => setPhotoUri(undefined)}>
+                  onPress={() => setPhotoUris(prev => prev.filter((_, j) => j !== i))}>
                   <Ionicons name="close-circle" size={20} color="#cc4444" />
                 </TouchableOpacity>
               </View>
-            )}
+            ))}
           </View>
 
           {/* Notes */}
@@ -276,6 +376,7 @@ export default function SpeciesDetailScreen() {
   const taxonId = parseInt(id, 10);
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
+  const insets = useSafeAreaInsets();
 
   const [modalVisible, setModalVisible] = useState(false);
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
@@ -286,12 +387,23 @@ export default function SpeciesDetailScreen() {
     queryFn: () => getTaxon(taxonId),
   });
 
-  const { data: recentObs } = useQuery({
+  const { data: nearbyObs } = useQuery({
     queryKey: ['obs', taxonId, location?.lat, location?.lng],
     queryFn: () => getRecentObservations(taxonId, location?.lat, location?.lng),
     enabled: !!taxon,
     staleTime: 5 * 60 * 1000,
   });
+
+  // When a location-filtered search returns nothing, fall back to global sightings
+  const nearbyWasEmpty = !!location && nearbyObs !== undefined && nearbyObs.length === 0;
+  const { data: globalObs } = useQuery({
+    queryKey: ['obs-global', taxonId],
+    queryFn: () => getRecentObservations(taxonId),
+    enabled: nearbyWasEmpty,
+    staleTime: 5 * 60 * 1000,
+  });
+  const recentObs = nearbyWasEmpty ? globalObs : nearbyObs;
+  const obsIsGlobal = nearbyWasEmpty && !!globalObs?.length;
 
   const { data: histogram } = useQuery({
     queryKey: ['histogram', taxonId, location?.lat, location?.lng],
@@ -300,12 +412,24 @@ export default function SpeciesDetailScreen() {
     staleTime: 60 * 60 * 1000,
   });
 
-  const { data: wikiSummary } = useQuery({
-    queryKey: ['wiki', taxon?.wikipedia_url],
+  const { data: wikiSummary, isError: wikiError } = useQuery({
+    queryKey: ['wiki', 'v3', taxon?.wikipedia_url],
     queryFn: () => getWikipediaSummary(taxon!.wikipedia_url!),
     enabled: !!taxon?.wikipedia_url,
     staleTime: 24 * 60 * 60 * 1000,
+    retry: 1,
   });
+
+  // IUCN Red List fallback — only runs when iNaturalist has no status and token is set.
+  const { data: iucnStatus } = useQuery({
+    queryKey: ['iucn', taxon?.name],
+    queryFn: () => getIucnStatus(taxon!.name),
+    enabled: !!taxon && !taxon.conservation_status && HAS_IUCN_TOKEN,
+    staleTime: 7 * 24 * 60 * 60 * 1000,
+    retry: 0,
+  });
+
+  const conservationStatus = taxon?.conservation_status ?? iucnStatus ?? null;
 
   // Select the stable array reference; derive hasSeen/mySightings with useMemo
   // so we don't hand Zustand a selector that returns a new array ref every call
@@ -321,7 +445,7 @@ export default function SpeciesDetailScreen() {
   );
   const add = useLifelist(s => s.add);
 
-  const handleAdd = ({ notes, locationName, coords, photoUri }: SightingData) => {
+  const handleAdd = ({ notes, locationName, coords, photoUris }: SightingData) => {
     if (!taxon) return;
     add({
       speciesId: taxon.id,
@@ -333,7 +457,7 @@ export default function SpeciesDetailScreen() {
       notes: notes || undefined,
       imageUrl: getTaxonPhotoUrl(taxon),
       locationName: locationName || coords?.name || undefined,
-      photoUri,
+      photoUris: photoUris.length > 0 ? photoUris : undefined,
     });
     setModalVisible(false);
     Alert.alert('Added!', `${taxon.preferred_common_name ?? taxon.name} added to your life list.`);
@@ -368,20 +492,33 @@ export default function SpeciesDetailScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ title: taxon.preferred_common_name ?? taxon.name }} />
-
       <ScrollView
         style={[styles.container, isDark && styles.containerDark]}
         contentContainerStyle={styles.scroll}>
 
-        {/* Cover photo */}
-        {coverPhoto ? (
-          <Image source={{ uri: coverPhoto }} style={styles.cover} resizeMode="cover" />
-        ) : (
-          <View style={[styles.cover, styles.coverPlaceholder]}>
-            <Ionicons name="fish" size={64} color="#bbb" />
-          </View>
-        )}
+        {/* Cover photo with back button overlay */}
+        <View>
+          {coverPhoto ? (
+            <TouchableOpacity activeOpacity={0.92} onPress={() => setLightboxUrl(coverPhoto)}>
+              <Image source={{ uri: coverPhoto }} style={styles.cover} resizeMode="cover" />
+              {/* Expand hint */}
+              <View style={styles.coverExpandHint} pointerEvents="none">
+                <Ionicons name="expand-outline" size={18} color="rgba(255,255,255,0.85)" />
+              </View>
+            </TouchableOpacity>
+          ) : (
+            <View style={[styles.cover, styles.coverPlaceholder]}>
+              <Ionicons name="fish" size={64} color="#bbb" />
+            </View>
+          )}
+          {/* Custom back button — always visible regardless of photo brightness */}
+          <TouchableOpacity
+            style={[styles.coverBackBtn, { top: insets.top + 8 }]}
+            onPress={() => router.back()}
+            hitSlop={8}>
+            <Ionicons name="arrow-back" size={22} color="#fff" />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.body}>
           {/* Names */}
@@ -437,18 +574,46 @@ export default function SpeciesDetailScreen() {
             </Text>
           )}
 
-          {/* Description */}
-          {(wikiSummary ?? taxon.wikipedia_summary) ? (
-            <>
-              <Text style={[styles.sectionTitle, isDark && styles.textDark]}>About</Text>
-              <Text style={[styles.description, isDark && styles.descriptionDark]}>
-                {wikiSummary ?? stripHtml(taxon.wikipedia_summary!)}
-              </Text>
-              {taxon.wikipedia_url && (
-                <Text style={styles.wikiLink}>Source: Wikipedia</Text>
-              )}
-            </>
-          ) : null}
+          {/* Conservation status */}
+          {conservationStatus && (
+            <ConservationBadge status={conservationStatus} isDark={isDark} />
+          )}
+
+          {/* Description — prefer live Wikipedia fetch, then iNat description, then cached summary.
+              iNaturalist stores '...' as a placeholder; filter those out.
+              Show the section whenever a Wikipedia URL exists, even while the fetch is in flight. */}
+          {(() => {
+            const hasWikiUrl = !!taxon.wikipedia_url;
+            const inatSummary = taxon.wikipedia_summary
+              ? stripHtml(taxon.wikipedia_summary)
+              : null;
+            const text = wikiSummary
+              || taxon.description
+              || (inatSummary && inatSummary.length > 20 ? inatSummary : null);
+            // Nothing to show at all
+            if (!text && !hasWikiUrl) return null;
+            // Wiki fetch is in-flight (no text yet, no error)
+            const wikiLoading = hasWikiUrl && !wikiSummary && !wikiError;
+            return (
+              <>
+                <Text style={[styles.sectionTitle, isDark && styles.textDark]}>About</Text>
+                {text ? (
+                  <Text style={[styles.description, isDark && styles.descriptionDark]}>{text}</Text>
+                ) : wikiLoading ? (
+                  <ActivityIndicator
+                    size="small"
+                    color={OCEAN_BLUE}
+                    style={{ alignSelf: 'flex-start', marginVertical: 4 }}
+                  />
+                ) : null}
+                {hasWikiUrl && (
+                  <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(taxon.wikipedia_url!)}>
+                    <Text style={styles.wikiLink}>Source: Wikipedia ↗</Text>
+                  </TouchableOpacity>
+                )}
+              </>
+            );
+          })()}
 
           {/* External links */}
           <View style={styles.linkRow}>
@@ -482,13 +647,13 @@ export default function SpeciesDetailScreen() {
 
           {/* Distribution map */}
           <Text style={[styles.sectionTitle, isDark && styles.textDark]}>Global Distribution</Text>
-          <DistributionMap taxonId={taxonId} />
+          <DistributionMap taxonId={taxonId} userLat={location?.lat} userLng={location?.lng} />
 
           {/* Recent observations */}
           {recentObs && recentObs.length > 0 && (
             <>
               <Text style={[styles.sectionTitle, isDark && styles.textDark]}>
-                {location ? 'Recent Nearby Sightings' : 'Recent Sightings'}
+                {obsIsGlobal ? 'Recent Sightings Worldwide' : location ? 'Recent Nearby Sightings' : 'Recent Sightings'}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 {recentObs.map(obs => {
@@ -535,7 +700,10 @@ export default function SpeciesDetailScreen() {
             <>
               <Text style={[styles.sectionTitle, isDark && styles.textDark]}>My Sightings</Text>
               {mySightings.map(s => (
-                <View key={s.id} style={[styles.mySighting, isDark && styles.mySightingDark]}>
+                <TouchableOpacity
+                  key={s.id}
+                  style={[styles.mySighting, isDark && styles.mySightingDark]}
+                  onPress={() => router.push(`/sighting/${s.id}`)}>
                   <Ionicons name="checkmark-circle" size={16} color={OCEAN_BLUE} />
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.mySightingDate, isDark && styles.textDark]}>
@@ -546,10 +714,19 @@ export default function SpeciesDetailScreen() {
                       <Text style={styles.mySightingNotes}>{s.notes}</Text>
                     ) : null}
                   </View>
-                </View>
+                  <Ionicons name="chevron-forward" size={16} color={isDark ? '#555' : '#ccc'} />
+                </TouchableOpacity>
               ))}
             </>
           )}
+          {/* Attribution */}
+          <TouchableOpacity
+            onPress={() => WebBrowser.openBrowserAsync(`https://www.inaturalist.org/taxa/${taxon.id}`)}
+            style={styles.attribution}>
+            <Text style={styles.attributionText}>
+              Species data from iNaturalist · © contributors, CC BY-NC
+            </Text>
+          </TouchableOpacity>
         </View>
       </ScrollView>
 
@@ -569,21 +746,14 @@ export default function SpeciesDetailScreen() {
         transparent
         animationType="fade"
         onRequestClose={() => setLightboxUrl(null)}>
-        <TouchableOpacity
-          style={styles.lightboxBackdrop}
-          activeOpacity={1}
-          onPress={() => setLightboxUrl(null)}>
+        <View style={styles.lightboxBackdrop}>
           {lightboxUrl && (
-            <Image
-              source={{ uri: lightboxUrl }}
-              style={styles.lightboxImage}
-              resizeMode="contain"
-            />
+            <ZoomableImage key={lightboxUrl} uri={lightboxUrl} />
           )}
           <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxUrl(null)}>
             <Ionicons name="close-circle" size={32} color="#fff" />
           </TouchableOpacity>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </>
   );
@@ -596,6 +766,15 @@ const styles = StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center' },
   cover: { width: '100%', height: 260 },
   coverPlaceholder: { backgroundColor: '#dde8f0', alignItems: 'center', justifyContent: 'center' },
+  coverExpandHint: {
+    position: 'absolute', bottom: 10, right: 10,
+    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 16, padding: 6,
+  },
+  coverBackBtn: {
+    position: 'absolute', left: 14,
+    backgroundColor: 'rgba(0,0,0,0.45)', borderRadius: 20, padding: 8,
+    zIndex: 10,
+  },
   body: { padding: 20, gap: 8 },
   commonName: { fontSize: 26, fontWeight: '700', color: '#111' },
   textDark: { color: '#fff' },
@@ -705,6 +884,28 @@ const styles = StyleSheet.create({
   mySightingDark: { backgroundColor: '#112240' },
   mySightingDate: { fontSize: 13, fontWeight: '600', color: '#333' },
   mySightingNotes: { fontSize: 12, color: '#888', marginTop: 2 },
+  conservationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#fff',
+    borderRadius: 10,
+    padding: 10,
+    marginTop: 4,
+  },
+  conservationRowDark: { backgroundColor: '#112240' },
+  iucnBadge: {
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 44,
+    alignItems: 'center',
+  },
+  iucnCode: { fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
+  iucnLabel: { fontSize: 14, fontWeight: '600', color: '#111' },
+  iucnAuthority: { fontSize: 11, color: '#888', marginTop: 1 },
+  attribution: { marginTop: 20, alignItems: 'center', paddingBottom: 8 },
+  attributionText: { fontSize: 11, color: '#aaa', textAlign: 'center' },
   hint: { fontSize: 14, color: '#888', textAlign: 'center', marginTop: 12 },
   // Modal
   modalContainer: {
