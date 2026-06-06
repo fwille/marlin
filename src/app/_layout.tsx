@@ -1,12 +1,11 @@
 import { useEffect } from 'react';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import * as SecureStore from 'expo-secure-store';
 import { useLifelist } from '@/store/lifelist';
 import { useManualLocation } from '@/store/manualLocation';
 import { useThemeStore } from '@/store/theme';
@@ -29,7 +28,15 @@ function AppInit() {
     loadManualLocation();
     loadTheme();
 
+    if (Platform.OS === 'web') {
+      // SecureStore is native-only; no Auto Backup on web.
+      loadLifelist();
+      return;
+    }
+
+    // Dynamic import keeps expo-secure-store out of the web bundle entirely.
     (async () => {
+      const SecureStore = await import('expo-secure-store');
       const sentinel = await SecureStore.getItemAsync(SENTINEL_KEY);
 
       if (!sentinel) {
