@@ -18,6 +18,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
+import { File } from 'expo-file-system';
 import { useLifelist } from '@/store/lifelist';
 import LocationPicker, { PickedLocation } from '@/components/LocationPicker';
 
@@ -129,6 +130,20 @@ export default function SightingDetailScreen() {
     ]);
   };
 
+  const handleRelinkPhoto = async (index: number) => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Allow Marlin to access your photos.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
+    if (!result.canceled && sighting) {
+      const updated = [...(sighting.photoUris ?? [])];
+      updated[index] = result.assets[0].uri;
+      updateSighting(sighting.id, { photoUris: updated });
+    }
+  };
+
   const handleDelete = () => {
     if (!sighting) return;
     Alert.alert(
@@ -163,7 +178,25 @@ export default function SightingDetailScreen() {
   }
 
   const photos = sighting.photoUris ?? [];
-  const lightboxPhotos = photos.length > 0 ? photos : (sighting.imageUrl ? [sighting.imageUrl] : []);
+
+  // Detect which local photos no longer exist on this device (e.g. after a backup restore).
+  const brokenIndices = useMemo(() => new Set(
+    photos
+      .map((uri, i) => ({ uri, i }))
+      .filter(({ uri }) => uri.startsWith('file://') && !new File(uri).exists)
+      .map(({ i }) => i)
+  ), [photos]);
+
+  // lightboxPhotos contains only viewable (non-broken) photos.
+  // lightboxToGallery[lightboxIndex] gives the original photos[] index (needed for remove).
+  const lightboxPhotos = useMemo(() => photos.filter((_, i) => !brokenIndices.has(i)), [photos, brokenIndices]);
+  const lightboxToGallery = useMemo(() => photos.map((_, i) => i).filter(i => !brokenIndices.has(i)), [photos, brokenIndices]);
+  const galleryToLightbox = useMemo(() => {
+    const map = new Map<number, number>();
+    let li = 0;
+    photos.forEach((_, i) => { if (!brokenIndices.has(i)) map.set(i, li++); });
+    return map;
+  }, [photos, brokenIndices]);
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={['top']}>
@@ -190,11 +223,23 @@ export default function SightingDetailScreen() {
               keyExtractor={(_, i) => i.toString()}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.galleryList}
-              renderItem={({ item, index }) => (
-                <TouchableOpacity onPress={() => setLightboxIndex(index)} activeOpacity={0.85}>
-                  <Image source={{ uri: item }} style={styles.galleryThumb} />
-                </TouchableOpacity>
-              )}
+              renderItem={({ item, index }) => {
+                const broken = brokenIndices.has(index);
+                return (
+                  <TouchableOpacity
+                    onPress={() => broken ? handleRelinkPhoto(index) : setLightboxIndex(galleryToLightbox.get(index) ?? 0)}
+                    activeOpacity={0.85}>
+                    {broken ? (
+                      <View style={[styles.galleryThumb, styles.galleryBroken, isDark && styles.galleryBrokenDark]}>
+                        <Ionicons name="image-outline" size={28} color="#aaa" />
+                        <Text style={styles.galleryBrokenLabel}>Re-attach</Text>
+                      </View>
+                    ) : (
+                      <Image source={{ uri: item }} style={styles.galleryThumb} />
+                    )}
+                  </TouchableOpacity>
+                );
+              }}
             />
           </View>
         ) : sighting.imageUrl ? (
@@ -358,7 +403,7 @@ export default function SightingDetailScreen() {
                     <Ionicons name="chevron-back" size={32} color="#fff" />
                   </TouchableOpacity>
                 )}
-                <TouchableOpacity onPress={() => handleRemovePhoto(lightboxIndex)} style={styles.lightboxRemove}>
+                <TouchableOpacity onPress={() => handleRemovePhoto(lightboxToGallery[lightboxIndex])} style={styles.lightboxRemove}>
                   <Ionicons name="trash-outline" size={20} color="#fff" />
                   <Text style={styles.lightboxRemoveText}>Remove</Text>
                 </TouchableOpacity>
@@ -397,6 +442,9 @@ const styles = StyleSheet.create({
   gallerySection: { marginBottom: 0 },
   galleryList: { paddingHorizontal: 16, gap: 8, paddingVertical: 8 },
   galleryThumb: { width: 120, height: 120, borderRadius: 10, backgroundColor: '#dde6ef' },
+  galleryBroken: { alignItems: 'center', justifyContent: 'center', gap: 4, borderWidth: 1, borderStyle: 'dashed', borderColor: '#bbb' },
+  galleryBrokenDark: { borderColor: '#334' },
+  galleryBrokenLabel: { fontSize: 11, color: '#aaa', fontWeight: '500' },
 
   heroCover: { width: '100%', height: 220, backgroundColor: '#dde6ef' },
   heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
