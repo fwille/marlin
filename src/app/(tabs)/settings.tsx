@@ -223,7 +223,7 @@ export default function SettingsScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="close-circle" size={15} color="#c62828" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Photos you took yourself — these are stored on your device and must be backed up separately (e.g. via Google Photos)
+              Photos you took yourself — stored on your device only. Back them up separately (e.g. via Google Photos). After a restore, open each sighting to re-link your photos.
             </Text>
           </View>
         </View>
