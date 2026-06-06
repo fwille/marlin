@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "marlin",
+    "name": "Marlin",
     "slug": "marlin",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -11,6 +11,10 @@
       "icon": "./assets/expo.icon"
     },
     "android": {
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION"
+      ],
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
@@ -28,11 +32,25 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#006994",
           "android": {
             "image": "./assets/images/splash-icon.png",
             "imageWidth": 76
           }
+        }
+      ],
+      "expo-sqlite",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Marlin to access your photos to attach to sightings.",
+          "cameraPermission": "Allow Marlin to use the camera to photograph your sightings."
+        }
+      ],
+      [
+        "react-native-maps",
+        {
+          "androidApiKey": "YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
         }
       ]
     ],
