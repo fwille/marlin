@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
 import { useManualLocation } from '@/store/manualLocation';
 
@@ -7,45 +7,78 @@ export interface UserLocation {
   lng: number;
 }
 
+// Module-level cache so subsequent mounts get a result instantly.
+let cachedGps: UserLocation | null = null;
+let gpsSettled = false;
+
+async function fetchGps(): Promise<UserLocation | null> {
+  try {
+    const loc = await Location.getCurrentPositionAsync({
+      accuracy: Location.Accuracy.Balanced,
+    });
+    return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+  } catch {
+    return null;
+  }
+}
+
 export function useLocation() {
-  const [gpsLocation, setGpsLocation] = useState<UserLocation | null>(null);
-  const [gpsLoading, setGpsLoading] = useState(true);
+  const [gpsLocation, setGpsLocation] = useState<UserLocation | null>(cachedGps);
+  const [gpsLoading, setGpsLoading] = useState(false);
   const manualLoc = useManualLocation(s => s.location);
+  const forced = useManualLocation(s => s.forced);
 
   useEffect(() => {
+    // If we already have a cached result, nothing to do.
+    if (gpsSettled) return;
     let cancelled = false;
     (async () => {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (cancelled) return;
-      if (status !== 'granted') {
-        setGpsLoading(false);
-        return;
-      }
-      try {
-        const loc = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-        if (!cancelled) {
-          setGpsLocation({ lat: loc.coords.latitude, lng: loc.coords.longitude });
+      // Check existing permission WITHOUT prompting the user.
+      const { status } = await Location.getForegroundPermissionsAsync();
+      if (cancelled || status !== 'granted') return;
+      // Permission was previously granted — silently refresh position.
+      setGpsLoading(true);
+      const result = await fetchGps();
+      if (!cancelled) {
+        if (result) {
+          cachedGps = result;
+          setGpsLocation(result);
         }
-      } catch {
-        // fall through to manual location
-      } finally {
-        if (!cancelled) setGpsLoading(false);
+        gpsSettled = true;
+        setGpsLoading(false);
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  const location = gpsLocation ?? manualLoc ?? null;
-  // Only show loading spinner if GPS is still pending AND we have no location yet.
-  const loading = gpsLoading && location === null;
+  // Called when the user explicitly taps "Use my GPS location".
+  const requestGps = useCallback(async () => {
+    if (cachedGps) {
+      setGpsLocation(cachedGps);
+      return;
+    }
+    setGpsLoading(true);
+    const { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      gpsSettled = true;
+      setGpsLoading(false);
+      return;
+    }
+    const result = await fetchGps();
+    cachedGps = result;
+    gpsSettled = true;
+    if (result) setGpsLocation(result);
+    setGpsLoading(false);
+  }, []);
+
+  const location = forced ? manualLoc : (gpsLocation ?? manualLoc ?? null);
+  const loading = gpsLoading;
 
   return {
     location,
     loading,
-    // true when showing a manually-set location (GPS not available or not granted)
-    isManual: !gpsLocation && !!manualLoc,
+    isManual: forced || (!gpsLocation && !!manualLoc),
     locationName: manualLoc?.name,
+    requestGps,
   };
 }
