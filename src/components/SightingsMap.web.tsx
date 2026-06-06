@@ -1,5 +1,6 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLifelist } from '@/store/lifelist';
@@ -66,7 +67,7 @@ export default function SightingsMap() {
           date: s.date,
           locationName: s.locationName ?? '',
           speciesId: s.speciesId,
-          photoUri: s.photoUri ?? '',
+          photoUri: s.photoUris?.[0] ?? '',
           imageUrl: s.imageUrl ?? '',
         })),
     [sightings]

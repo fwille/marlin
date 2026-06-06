@@ -5,11 +5,13 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  useColorScheme,
+  ActivityIndicator,
 } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
 import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
 
@@ -91,13 +93,41 @@ export default function SightingsMap() {
           date: s.date,
           locationName: s.locationName ?? '',
           speciesId: s.speciesId,
-          photoUri: s.photoUri ?? '',
+          photoUri: s.photoUris?.[0] ?? '',
           imageUrl: s.imageUrl ?? '',
         })),
     [sightings]
   );
 
-  const mapHtml = useMemo(() => buildMapHtml(allPoints), [allPoints]);
+  // Resolve local file:// URIs to base64 data URIs so the WebView can display them.
+  const [resolvedPoints, setResolvedPoints] = useState<Point[]>([]);
+  useEffect(() => {
+    if (allPoints.length === 0) { setResolvedPoints([]); return; }
+    let cancelled = false;
+    (async () => {
+      const resolved = await Promise.all(
+        allPoints.map(async (p) => {
+          const uri = p.photoUri;
+          if (!uri || (!uri.startsWith('file://') && !uri.startsWith('content://'))) return p;
+          try {
+            const b64 = await FileSystem.readAsStringAsync(uri, {
+              encoding: FileSystem.EncodingType.Base64,
+            });
+            return { ...p, photoUri: `data:image/jpeg;base64,${b64}` };
+          } catch {
+            return { ...p, photoUri: '' };
+          }
+        })
+      );
+      if (!cancelled) setResolvedPoints(resolved);
+    })();
+    return () => { cancelled = true; };
+  }, [allPoints]);
+
+  const mapHtml = useMemo(
+    () => resolvedPoints.length > 0 ? buildMapHtml(resolvedPoints) : '',
+    [resolvedPoints]
+  );
 
   useEffect(() => {
     webViewRef.current?.injectJavaScript(`filterMarkers(${JSON.stringify(query)}); true;`);
@@ -134,16 +164,22 @@ export default function SightingsMap() {
 
   return (
     <View style={styles.container}>
-      <WebView
-        ref={webViewRef}
-        style={styles.map}
-        source={{ html: mapHtml }}
-        onMessage={handleMessage}
-        onLoad={handleLoad}
-        scrollEnabled={false}
-        originWhitelist={['*']}
-        javaScriptEnabled
-      />
+      {resolvedPoints.length === 0 ? (
+        <View style={[styles.empty, isDark && styles.emptyDark]}>
+          <ActivityIndicator size="large" color={OCEAN_BLUE} />
+        </View>
+      ) : (
+        <WebView
+          ref={webViewRef}
+          style={styles.map}
+          source={{ html: mapHtml }}
+          onMessage={handleMessage}
+          onLoad={handleLoad}
+          scrollEnabled={false}
+          originWhitelist={['*']}
+          javaScriptEnabled
+        />
+      )}
 
       <View style={[styles.filterBar, isDark && styles.filterBarDark]}>
         <Ionicons name="search" size={15} color="#888" />
