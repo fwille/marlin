@@ -5,8 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as DocumentPicker from 'expo-document-picker';
-import { File } from 'expo-file-system';
+import * as Clipboard from 'expo-clipboard';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeStore, ThemePreference } from '@/store/theme';
 import { useLifelist } from '@/store/lifelist';
@@ -92,12 +91,11 @@ export default function SettingsScreen() {
     if (busy) return;
     setBusy(true);
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: 'application/json',
-        copyToCacheDirectory: true,
-      });
-      if (result.canceled) return;
-      const raw = await new File(result.assets[0].uri).text();
+      const raw = await Clipboard.getStringAsync();
+      if (!raw.trim()) {
+        Alert.alert('Clipboard is empty', 'Copy your backup text first, then tap Import.');
+        return;
+      }
       const data: BackupFile = JSON.parse(raw);
       if (data.version !== 1 || !Array.isArray(data.sightings)) {
         Alert.alert('Invalid backup file', 'This file does not appear to be a Marlin backup.');
@@ -188,9 +186,9 @@ export default function SettingsScreen() {
             </View>
             <View style={styles.rowText}>
               <Text style={[styles.rowLabel, isDark && styles.textDark]}>Import life list</Text>
-              <Text style={styles.rowSub}>Restore from a backup file (replaces current data)</Text>
+              <Text style={styles.rowSub}>Copy backup text, then tap here to restore</Text>
             </View>
-            <Ionicons name="folder-open-outline" size={18} color={isDark ? '#555' : '#bbb'} />
+            <Ionicons name="clipboard-outline" size={18} color={isDark ? '#555' : '#bbb'} />
           </TouchableOpacity>
 
           {Platform.OS === 'android' && (
