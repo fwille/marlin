@@ -6,6 +6,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { File, Paths } from 'expo-file-system';
 import { useLifelist } from '@/store/lifelist';
 import { useManualLocation } from '@/store/manualLocation';
 import { useThemeStore } from '@/store/theme';
@@ -17,8 +18,6 @@ const queryClient = new QueryClient({
   },
 });
 
-const SENTINEL_KEY = 'marlin_device_sentinel';
-
 function AppInit() {
   const loadLifelist = useLifelist(s => s.load);
   const loadManualLocation = useManualLocation(s => s.load);
@@ -29,42 +28,35 @@ function AppInit() {
     loadTheme();
 
     if (Platform.OS === 'web') {
-      // SecureStore is native-only; no Auto Backup on web.
       loadLifelist();
       return;
     }
 
-    // Dynamic import keeps expo-secure-store out of the web bundle entirely.
-    (async () => {
-      const SecureStore = await import('expo-secure-store');
-      const sentinel = await SecureStore.getItemAsync(SENTINEL_KEY);
-
-      if (!sentinel) {
-        // First run on this device — write a sentinel that is never backed up.
-        await SecureStore.setItemAsync(SENTINEL_KEY, Date.now().toString());
-
-        // If backup was disabled and sightings exist, they must have been
-        // restored by Android Auto Backup against the user's preference.
-        const backupAllowed = dbGetSetting('backup_allowed') !== 'false';
-        if (!backupAllowed && dbGetAllSightings().length > 0) {
-          Alert.alert(
-            'Restored data found',
-            'Your life list was restored from a device backup, but you had Auto Backup disabled. Would you like to keep or discard this data?',
-            [
-              { text: 'Keep', onPress: () => loadLifelist() },
-              {
-                text: 'Discard',
-                style: 'destructive',
-                onPress: () => { dbClearAllSightings(); loadLifelist(); },
-              },
-            ]
-          );
-          return;
-        }
+    // The cache directory is excluded from Android Auto Backup and is cleared
+    // on a fresh install, making it a reliable sentinel: if this file is absent
+    // but the DB has data, the data arrived via a backup restore.
+    const sentinel = new File(Paths.cache, 'marlin_sentinel');
+    if (!sentinel.exists) {
+      sentinel.write('1');
+      const backupAllowed = dbGetSetting('backup_allowed') !== 'false';
+      if (!backupAllowed && dbGetAllSightings().length > 0) {
+        Alert.alert(
+          'Restored data found',
+          'Your life list was restored from a device backup, but you had Auto Backup disabled. Would you like to keep or discard this data?',
+          [
+            { text: 'Keep', onPress: () => loadLifelist() },
+            {
+              text: 'Discard',
+              style: 'destructive',
+              onPress: () => { dbClearAllSightings(); loadLifelist(); },
+            },
+          ]
+        );
+        return;
       }
+    }
 
-      loadLifelist();
-    })();
+    loadLifelist();
   }, [loadLifelist, loadManualLocation, loadTheme]);
 
   return null;
