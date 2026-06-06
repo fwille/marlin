@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Linking,
-  Alert, ScrollView, Switch, Platform, Share,
+  Alert, ScrollView, Switch, Platform, Share, Modal, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import * as Clipboard from 'expo-clipboard';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeStore, ThemePreference } from '@/store/theme';
 import { useLifelist } from '@/store/lifelist';
@@ -36,6 +35,8 @@ export default function SettingsScreen() {
 
   const [backupEnabled, setBackupEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [importModalVisible, setImportModalVisible] = useState(false);
+  const [importText, setImportText] = useState('');
 
   useEffect(() => {
     setBackupEnabled(dbGetSetting(BACKUP_SETTING) !== 'false');
@@ -87,18 +88,16 @@ export default function SettingsScreen() {
     }
   };
 
-  const handleImport = async () => {
-    if (busy) return;
-    setBusy(true);
+  const handleImport = () => {
+    setImportText('');
+    setImportModalVisible(true);
+  };
+
+  const confirmImport = () => {
     try {
-      const raw = await Clipboard.getStringAsync();
-      if (!raw.trim()) {
-        Alert.alert('Clipboard is empty', 'Copy your backup text first, then tap Import.');
-        return;
-      }
-      const data: BackupFile = JSON.parse(raw);
+      const data: BackupFile = JSON.parse(importText.trim());
       if (data.version !== 1 || !Array.isArray(data.sightings)) {
-        Alert.alert('Invalid backup file', 'This file does not appear to be a Marlin backup.');
+        Alert.alert('Invalid backup', 'This does not look like a Marlin backup.');
         return;
       }
       Alert.alert(
@@ -111,15 +110,14 @@ export default function SettingsScreen() {
             onPress: () => {
               dbImportSightings(data.sightings);
               loadLifelist();
+              setImportModalVisible(false);
               Alert.alert('Restored', `${data.sightings.length} sighting${data.sightings.length !== 1 ? 's' : ''} imported.`);
             },
           },
         ]
       );
-    } catch (e) {
-      Alert.alert('Import failed', String(e));
-    } finally {
-      setBusy(false);
+    } catch {
+      Alert.alert('Invalid JSON', 'Could not parse the backup text. Make sure you copied the full export.');
     }
   };
 
@@ -179,16 +177,15 @@ export default function SettingsScreen() {
 
           <TouchableOpacity
             style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}
-            onPress={handleImport}
-            disabled={busy}>
+            onPress={handleImport}>
             <View style={[styles.iconWrap, { backgroundColor: '#fff3e0' }]}>
               <Ionicons name="arrow-down-circle-outline" size={20} color="#e65100" />
             </View>
             <View style={styles.rowText}>
               <Text style={[styles.rowLabel, isDark && styles.textDark]}>Import life list</Text>
-              <Text style={styles.rowSub}>Copy backup text, then tap here to restore</Text>
+              <Text style={styles.rowSub}>Paste backup text to restore</Text>
             </View>
-            <Ionicons name="clipboard-outline" size={18} color={isDark ? '#555' : '#bbb'} />
+            <Ionicons name="arrow-down-circle-outline" size={18} color={isDark ? '#555' : '#bbb'} />
           </TouchableOpacity>
 
           {Platform.OS === 'android' && (
@@ -240,6 +237,43 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Import paste modal */}
+      <Modal
+        visible={importModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setImportModalVisible(false)}>
+        <KeyboardAvoidingView behavior="padding" style={styles.modalOverlay}>
+          <View style={[styles.modalSheet, isDark && styles.modalSheetDark]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, isDark && styles.textDark]}>Import backup</Text>
+              <TouchableOpacity onPress={() => setImportModalVisible(false)} hitSlop={12}>
+                <Ionicons name="close" size={24} color={isDark ? '#aaa' : '#555'} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.modalHint}>
+              Paste your exported backup text below, then tap Restore.
+            </Text>
+            <TextInput
+              style={[styles.pasteInput, isDark && styles.pasteInputDark]}
+              multiline
+              placeholder="Paste backup JSON here…"
+              placeholderTextColor="#888"
+              value={importText}
+              onChangeText={setImportText}
+              autoCorrect={false}
+              autoCapitalize="none"
+            />
+            <TouchableOpacity
+              style={[styles.restoreBtn, !importText.trim() && styles.restoreBtnDisabled]}
+              onPress={confirmImport}
+              disabled={!importText.trim()}>
+              <Text style={styles.restoreBtnText}>Restore</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -280,4 +314,28 @@ const styles = StyleSheet.create({
   rowText: { flex: 1 },
   rowLabel: { fontSize: 15, fontWeight: '500', color: '#111' },
   rowSub: { fontSize: 12, color: '#888', marginTop: 1 },
+  modalOverlay: {
+    flex: 1, justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalSheet: {
+    backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20,
+    padding: 20, gap: 14,
+  },
+  modalSheetDark: { backgroundColor: '#112240' },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  modalTitle: { fontSize: 17, fontWeight: '700', color: '#111' },
+  modalHint: { fontSize: 13, color: '#888' },
+  pasteInput: {
+    borderWidth: 1, borderColor: '#d0dae6', borderRadius: 10,
+    padding: 12, fontSize: 12, fontFamily: 'monospace',
+    color: '#111', height: 160, textAlignVertical: 'top',
+  },
+  pasteInputDark: { borderColor: '#1e3050', backgroundColor: '#0a1628', color: '#fff' },
+  restoreBtn: {
+    backgroundColor: OCEAN_BLUE, borderRadius: 12,
+    paddingVertical: 14, alignItems: 'center',
+  },
+  restoreBtnDisabled: { opacity: 0.4 },
+  restoreBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 });
