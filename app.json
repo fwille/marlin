@@ -45,8 +45,7 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow Marlin to access your photos to attach to sightings.",
-          "cameraPermission": "Allow Marlin to use the camera to photograph your sightings."
+          "photosPermission": "Allow Marlin to access your photos to attach to sightings."
         }
       ],
       "expo-sharing",

@@ -101,19 +101,6 @@ export default function SightingDetailScreen() {
     }
   };
 
-  const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow Marlin to use the camera.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({ quality: 0.7 });
-    if (!result.canceled && sighting) {
-      const merged = [...(sighting.photoUris ?? []), result.assets[0].uri];
-      updateSighting(sighting.id, { photoUris: merged });
-    }
-  };
-
   const handleRemovePhoto = (index: number) => {
     if (!sighting) return;
     Alert.alert('Remove photo?', undefined, [
@@ -257,10 +244,6 @@ export default function SightingDetailScreen() {
           <TouchableOpacity style={[styles.photoBtn, isDark && styles.photoBtnDark]} onPress={handleAddPhotos}>
             <Ionicons name="image-outline" size={18} color={OCEAN_BLUE} />
             <Text style={styles.photoBtnText}>Add from gallery</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={[styles.photoBtn, isDark && styles.photoBtnDark]} onPress={handleTakePhoto}>
-            <Ionicons name="camera-outline" size={18} color={OCEAN_BLUE} />
-            <Text style={styles.photoBtnText}>Take photo</Text>
           </TouchableOpacity>
         </View>
 

@@ -276,20 +276,6 @@ function AddSightingModal({
     if (!result.canceled) setPhotoUris(prev => [...prev, ...result.assets.map(a => a.uri)]);
   };
 
-  const handleTakePhoto = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Allow Marlin to use the camera to photograph sightings.');
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      quality: 0.7,
-      allowsEditing: true,
-      aspect: [4, 3],
-    });
-    if (!result.canceled) setPhotoUris(prev => [...prev, result.assets[0].uri]);
-  };
-
   const handleAdd = () => {
     onAdd({ notes: notes.trim(), locationName: locationName.trim(), coords, photoUris });
     setNotes('');
@@ -335,13 +321,7 @@ function AddSightingModal({
               style={[styles.photoBtn, isDark && styles.photoBtnDark]}
               onPress={handlePickPhoto}>
               <Ionicons name="image-outline" size={20} color={OCEAN_BLUE} />
-              <Text style={styles.photoBtnText}>Gallery</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.photoBtn, isDark && styles.photoBtnDark]}
-              onPress={handleTakePhoto}>
-              <Ionicons name="camera-outline" size={20} color={OCEAN_BLUE} />
-              <Text style={styles.photoBtnText}>Camera</Text>
+              <Text style={styles.photoBtnText}>Add from gallery</Text>
             </TouchableOpacity>
             {photoUris.map((uri, i) => (
               <View key={uri} style={styles.photoPreviewWrapper}>
