@@ -15,7 +15,7 @@ Marlin is a marine species identification and life-list app — like Merlin Bird
 | Remote data | iNaturalist API + TanStack Query v5 |
 | Local data | expo-sqlite v15 (sync API) |
 | State | Zustand v5 |
-| Maps (native) | react-native-maps 1.27.2 |
+| Maps (native) | Leaflet 1.9.4 via `react-native-webview` + `postMessage` — no API key |
 | Maps (web) | Leaflet 1.9.4 via `<iframe srcdoc>` + `postMessage` |
 | Photos | expo-image-picker |
 | Location | expo-location |
@@ -33,12 +33,15 @@ src/
       index.tsx               Nearby species (location-based)
       search.tsx              Global species search
       lifelist.tsx            Personal life list with swipe-delete
-      map.tsx                 My Sightings map — native (react-native-maps)
-      map.web.tsx             My Sightings map — web (Leaflet iframe)
+      map.tsx                 Hidden tab (href:null) — re-exports SightingsMap
     species/[id].tsx          Species detail + Add Sighting modal
   components/
-    LocationPicker.tsx        Tap-to-place map for sighting location — native
-    LocationPicker.web.tsx    Tap-to-place map for sighting location — web (Leaflet iframe)
+    SightingsMap.tsx          My Sightings map — native (WebView + Leaflet)
+    SightingsMap.web.tsx      My Sightings map — web (iframe + Leaflet)
+    DistributionMap.tsx       Species distribution — native (WebView + Leaflet + iNat tiles)
+    DistributionMap.web.tsx   Species distribution — web (iframe + Leaflet + iNat tiles)
+    LocationPicker.tsx        Tap-to-place map for sighting location — native (WebView + Leaflet)
+    LocationPicker.web.tsx    Tap-to-place map for sighting location — web (iframe + Leaflet)
   db/
     index.ts                  SQLite singleton + CRUD helpers — native
     index.web.ts              No-op stubs for web (SharedArrayBuffer unavailable in browsers)
@@ -51,11 +54,17 @@ src/
 ### Platform-specific files
 Metro auto-resolves `.web.ts` / `.web.tsx` over `.ts` / `.tsx` for browser builds. Use this for anything that diverges between native and web (maps, SQLite, color scheme hook).
 
-### Web maps (Leaflet)
-Both `LocationPicker.web.tsx` and `map.web.tsx` follow the same pattern:
+### Maps — native (WebView + Leaflet)
+Native map components use `react-native-webview`. The Leaflet HTML is built as a string and passed via `source={{ html }}`. Communication:
+- Leaflet → native: `window.ReactNativeWebView.postMessage(JSON.stringify({...}))` inside the HTML; received via the `onMessage` prop.
+- Native → Leaflet: `webViewRef.current?.injectJavaScript('someGlobal(...); true;')` — must end with `true;` so the JS expression has a value.
+- Build the HTML once on mount (or via `useMemo`) to avoid reloading the map on re-renders. For dynamic updates like filtering, use `injectJavaScript` rather than rebuilding the HTML.
+
+### Maps — web (iframe + Leaflet)
+Web map components (`*.web.tsx`) use a different pattern since `react-native-webview` uses `<iframe>` under the hood in browsers, which changes the `postMessage` origin. These use the imperative iframe pattern instead:
 1. Attach a `ref` to a `<View>` to get the underlying DOM node.
 2. Imperatively create `<iframe srcdoc={leafletHtml}>` and append it.
-3. Leaflet inside the iframe sends `postMessage` events; the parent listens with `window.addEventListener('message', ...)`.
+3. Leaflet inside the iframe sends `postMessage` events via `window.parent.postMessage(data, '*')`; the parent listens with `window.addEventListener('message', ...)`.
 4. Clean up iframe and listener in the `useEffect` return.
 
 Always use a `useRef` for callbacks passed into these effects to avoid stale closures.
@@ -100,15 +109,11 @@ Base URL: `https://api.inaturalist.org/v1`
 
 Marine taxa filter: `taxon_name` in `['Actinopterygii','Mammalia','Reptilia','Mollusca','Echinodermata']`
 
-## Native maps require a dev build
+## Maps work in Expo Go
 
-`react-native-maps` does **not** work in Expo Go. To test the native map tabs:
+All maps use `react-native-webview` with Leaflet/OpenStreetMap — no Google Maps API key required. `react-native-webview` is included in Expo Go, so maps can be tested without a dev build.
 
-```bash
-npx expo run:android
-```
-
-The `app.json` has `"androidApiKey": "YOUR_GOOGLE_MAPS_ANDROID_API_KEY"` — replace with a real Google Maps API key from Google Cloud Console before the map tiles will render on Android.
+Run with `npx expo start` and scan the QR code in Expo Go to test on a physical device.
 
 ## Running the project
 

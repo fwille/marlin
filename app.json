@@ -47,12 +47,6 @@
           "cameraPermission": "Allow Marlin to use the camera to photograph your sightings."
         }
       ],
-      [
-        "react-native-maps",
-        {
-          "androidApiKey": "YOUR_GOOGLE_MAPS_ANDROID_API_KEY"
-        }
-      ]
     ],
     "experiments": {
       "typedRoutes": true,

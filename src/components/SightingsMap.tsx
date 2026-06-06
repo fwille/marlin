@@ -1,14 +1,13 @@
-import { useMemo, useRef, useState, useCallback } from 'react';
+import { useMemo, useRef, useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
-  Image,
   StyleSheet,
   useColorScheme,
 } from 'react-native';
-import MapView, { Marker, Callout, Region } from 'react-native-maps';
+import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useLifelist } from '@/store/lifelist';
@@ -16,50 +15,114 @@ import { useLocation } from '@/hooks/useLocation';
 
 const OCEAN_BLUE = '#006994';
 
+interface Point {
+  lat: number; lng: number;
+  name: string; date: string; locationName: string;
+  speciesId: number; photoUri: string; imageUrl: string;
+}
+
+function buildMapHtml(points: Point[]): string {
+  const dataJson = JSON.stringify(points).replace(/<\/script>/gi, '<\\/script>');
+  return `<!DOCTYPE html><html>
+<head>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+<style>
+  *{margin:0;padding:0}html,body,#map{width:100%;height:100%}
+  .pop-name{font:bold 14px sans-serif;margin-bottom:3px}
+  .pop-sub{color:#888;font:12px sans-serif;margin:1px 0}
+  .pop-link{color:${OCEAN_BLUE};font:12px sans-serif;cursor:pointer;margin-top:4px}
+  .pop-img{width:100%;max-height:70px;object-fit:cover;border-radius:6px;margin-bottom:6px}
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script id="pts" type="application/json">${dataJson}<\/script>
+<script>
+  var pts = JSON.parse(document.getElementById('pts').textContent);
+  var lats=pts.map(function(p){return p.lat}),lngs=pts.map(function(p){return p.lng});
+  var map=L.map('map').fitBounds([
+    [Math.min.apply(null,lats)-1,Math.min.apply(null,lngs)-1],
+    [Math.max.apply(null,lats)+1,Math.max.apply(null,lngs)+1]
+  ],{maxZoom:10});
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap'}).addTo(map);
+
+  var allMarkers=[];
+  pts.forEach(function(p){
+    var img=(p.photoUri||p.imageUrl)?'<img class="pop-img" src="'+(p.photoUri||p.imageUrl)+'">':'';
+    var loc=p.locationName?'<div class="pop-sub">'+p.locationName+'<\/div>':'';
+    var html='<div style="min-width:150px">'+img+'<div class="pop-name">'+p.name+'<\/div><div class="pop-sub">'+p.date+'<\/div>'+loc+'<div class="pop-link" onclick="nav('+p.speciesId+')">View species →<\/div><\/div>';
+    var m=L.marker([p.lat,p.lng]).addTo(map).bindPopup(html);
+    m._speciesName=p.name.toLowerCase();
+    allMarkers.push(m);
+  });
+
+  window.filterMarkers=function(q){
+    q=q.toLowerCase().trim();
+    allMarkers.forEach(function(m){
+      if(!q||m._speciesName.indexOf(q)!==-1){if(!map.hasLayer(m))map.addLayer(m);}
+      else{if(map.hasLayer(m))map.removeLayer(m);}
+    });
+  };
+
+  window.flyTo=function(lat,lng){map.flyTo([lat,lng],12);};
+
+  function nav(id){window.ReactNativeWebView.postMessage(JSON.stringify({type:'marlin_nav',id:id}));}
+<\/script>
+</body></html>`;
+}
+
 export default function SightingsMap() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
-  const mapRef = useRef<MapView>(null);
+  const webViewRef = useRef<WebView>(null);
   const sightings = useLifelist(s => s.sightings);
   const { location } = useLocation();
   const [query, setQuery] = useState('');
 
-  const sightingsWithCoords = useMemo(
-    () => sightings.filter(s => s.lat != null && s.lng != null),
+  const allPoints = useMemo<Point[]>(
+    () =>
+      sightings
+        .filter(s => s.lat != null && s.lng != null)
+        .map(s => ({
+          lat: s.lat!, lng: s.lng!,
+          name: s.commonName ?? s.scientificName,
+          date: s.date,
+          locationName: s.locationName ?? '',
+          speciesId: s.speciesId,
+          photoUri: s.photoUri ?? '',
+          imageUrl: s.imageUrl ?? '',
+        })),
     [sightings]
   );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return sightingsWithCoords;
-    return sightingsWithCoords.filter(
-      s =>
-        s.commonName?.toLowerCase().includes(q) ||
-        s.scientificName.toLowerCase().includes(q)
-    );
-  }, [sightingsWithCoords, query]);
+  const mapHtml = useMemo(() => buildMapHtml(allPoints), [allPoints]);
 
-  const regionForSet = useCallback((pts: typeof sightingsWithCoords): Region => {
-    if (pts.length === 0) {
-      if (location) return { latitude: location.lat, longitude: location.lng, latitudeDelta: 10, longitudeDelta: 10 };
-      return { latitude: 20, longitude: 10, latitudeDelta: 60, longitudeDelta: 60 };
+  useEffect(() => {
+    webViewRef.current?.injectJavaScript(`filterMarkers(${JSON.stringify(query)}); true;`);
+  }, [query]);
+
+  const handleLoad = useCallback(() => {
+    if (query) {
+      webViewRef.current?.injectJavaScript(`filterMarkers(${JSON.stringify(query)}); true;`);
     }
-    const lats = pts.map(s => s.lat!);
-    const lngs = pts.map(s => s.lng!);
-    const minLat = Math.min(...lats), maxLat = Math.max(...lats);
-    const minLng = Math.min(...lngs), maxLng = Math.max(...lngs);
-    return {
-      latitude: (minLat + maxLat) / 2,
-      longitude: (minLng + maxLng) / 2,
-      latitudeDelta: Math.max(maxLat - minLat + 2, 1),
-      longitudeDelta: Math.max(maxLng - minLng + 2, 1),
-    };
-  }, [location]);
+  }, [query]);
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const initialRegion = useMemo(() => regionForSet(sightingsWithCoords), []);
+  const handleMessage = useCallback((event: WebViewMessageEvent) => {
+    try {
+      const d = JSON.parse(event.nativeEvent.data);
+      if (d?.type === 'marlin_nav') router.push(`/species/${d.id}`);
+    } catch {}
+  }, []);
 
-  if (sightingsWithCoords.length === 0) {
+  const matchCount = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return allPoints.length;
+    return allPoints.filter(p => p.name.toLowerCase().includes(q)).length;
+  }, [allPoints, query]);
+
+  if (allPoints.length === 0) {
     return (
       <View style={[styles.empty, isDark && styles.emptyDark]}>
         <Ionicons name="map-outline" size={56} color="#ccc" />
@@ -71,34 +134,17 @@ export default function SightingsMap() {
 
   return (
     <View style={styles.container}>
-      <MapView ref={mapRef} style={styles.map} initialRegion={initialRegion}>
-        {filtered.map(s => (
-          <Marker
-            key={s.id}
-            coordinate={{ latitude: s.lat!, longitude: s.lng! }}
-            pinColor={OCEAN_BLUE}>
-            <Callout onPress={() => router.push(`/species/${s.speciesId}`)}>
-              <View style={styles.callout}>
-                {(s.photoUri || s.imageUrl) && (
-                  <Image source={{ uri: s.photoUri ?? s.imageUrl }} style={styles.calloutImage} />
-                )}
-                <View style={styles.calloutBody}>
-                  <Text style={styles.calloutName} numberOfLines={1}>
-                    {s.commonName ?? s.scientificName}
-                  </Text>
-                  <Text style={styles.calloutDate}>{s.date}</Text>
-                  {s.locationName && (
-                    <Text style={styles.calloutPlace} numberOfLines={1}>{s.locationName}</Text>
-                  )}
-                  <Text style={styles.calloutTap}>Tap to view species →</Text>
-                </View>
-              </View>
-            </Callout>
-          </Marker>
-        ))}
-      </MapView>
+      <WebView
+        ref={webViewRef}
+        style={styles.map}
+        source={{ html: mapHtml }}
+        onMessage={handleMessage}
+        onLoad={handleLoad}
+        scrollEnabled={false}
+        originWhitelist={['*']}
+        javaScriptEnabled
+      />
 
-      {/* Filter bar overlay */}
       <View style={[styles.filterBar, isDark && styles.filterBarDark]}>
         <Ionicons name="search" size={15} color="#888" />
         <TextInput
@@ -106,42 +152,29 @@ export default function SightingsMap() {
           placeholder="Filter by species…"
           placeholderTextColor="#888"
           value={query}
-          onChangeText={t => {
-            setQuery(t);
-            const q = t.trim().toLowerCase();
-            const next = q
-              ? sightingsWithCoords.filter(
-                  s =>
-                    s.commonName?.toLowerCase().includes(q) ||
-                    s.scientificName.toLowerCase().includes(q)
-                )
-              : sightingsWithCoords;
-            if (next.length > 0) mapRef.current?.animateToRegion(regionForSet(next), 400);
-          }}
+          onChangeText={setQuery}
           autoCorrect={false}
           autoCapitalize="none"
           returnKeyType="done"
         />
         {query.length > 0 && (
-          <TouchableOpacity
-            hitSlop={8}
-            onPress={() => { setQuery(''); mapRef.current?.animateToRegion(regionForSet(sightingsWithCoords), 400); }}>
-            <Ionicons name="close-circle" size={15} color="#888" />
-          </TouchableOpacity>
+          <>
+            <Text style={styles.filterCount}>{matchCount}/{allPoints.length}</Text>
+            <TouchableOpacity hitSlop={8} onPress={() => setQuery('')}>
+              <Ionicons name="close-circle" size={15} color="#888" />
+            </TouchableOpacity>
+          </>
         )}
-        {query.trim() ? (
-          <Text style={styles.filterCount}>{filtered.length}/{sightingsWithCoords.length}</Text>
-        ) : null}
       </View>
 
-      {/* My location button */}
       {location && (
         <TouchableOpacity
           style={styles.locationBtn}
-          onPress={() => mapRef.current?.animateToRegion(
-            { latitude: location.lat, longitude: location.lng, latitudeDelta: 1, longitudeDelta: 1 },
-            400
-          )}>
+          onPress={() =>
+            webViewRef.current?.injectJavaScript(
+              `flyTo(${location.lat},${location.lng}); true;`
+            )
+          }>
           <Ionicons name="locate" size={22} color={OCEAN_BLUE} />
         </TouchableOpacity>
       )}
@@ -178,13 +211,6 @@ const styles = StyleSheet.create({
   filterBarDark: { backgroundColor: 'rgba(10,22,40,0.95)' },
   filterInput: { flex: 1, fontSize: 14, color: '#111', padding: 0 },
   filterCount: { fontSize: 12, color: '#888' },
-  callout: { flexDirection: 'row', gap: 10, maxWidth: 220 },
-  calloutImage: { width: 60, height: 60, borderRadius: 8 },
-  calloutBody: { flex: 1, gap: 2 },
-  calloutName: { fontSize: 14, fontWeight: '700', color: '#111' },
-  calloutDate: { fontSize: 12, color: '#666' },
-  calloutPlace: { fontSize: 12, color: '#888' },
-  calloutTap: { fontSize: 11, color: OCEAN_BLUE, marginTop: 2 },
   locationBtn: {
     position: 'absolute',
     bottom: 24,
