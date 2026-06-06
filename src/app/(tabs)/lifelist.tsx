@@ -7,8 +7,8 @@ import {
   Image,
   Alert,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -46,9 +46,9 @@ function SightingCard({ sighting, onDelete }: { sighting: Sighting; onDelete: ()
   return (
     <TouchableOpacity
       style={[styles.card, isDark && styles.cardDark]}
-      onPress={() => router.push(`/species/${sighting.speciesId}`)}>
-      {sighting.photoUri ?? sighting.imageUrl ? (
-        <Image source={{ uri: sighting.photoUri ?? sighting.imageUrl }} style={styles.cardImage} />
+      onPress={() => router.push(`/sighting/${sighting.id}`)}>
+      {(sighting.photoUris?.[0] ?? sighting.imageUrl) ? (
+        <Image source={{ uri: sighting.photoUris?.[0] ?? sighting.imageUrl }} style={styles.cardImage} />
       ) : (
         <View style={[styles.cardImage, styles.cardImagePlaceholder]}>
           <Ionicons name="fish" size={32} color="#aaa" />
@@ -88,7 +88,6 @@ export default function LifelistScreen() {
   const sightings = useLifelist(s => s.sightings);
   const remove = useLifelist(s => s.remove);
   const [view, setView] = useState<'list' | 'map'>('list');
-
   const uniqueCount = new Set(sightings.map(s => s.speciesId)).size;
 
   return (

@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
   TextInput,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -121,7 +121,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f8fa' },
   containerDark: { backgroundColor: '#0A1628' },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 4 },
+  header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   title: { fontSize: 28, fontWeight: '700', color: '#111' },
   textDark: { color: '#fff' },
   searchBar: {

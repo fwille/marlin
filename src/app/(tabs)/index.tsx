@@ -8,8 +8,8 @@ import {
   ActivityIndicator,
   Modal,
   StyleSheet,
-  useColorScheme,
 } from 'react-native';
+import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -56,13 +56,16 @@ function SpeciesCard({ item }: { item: NearbySpecies }) {
 function LocationPickerModal({
   visible,
   onClose,
+  isManual,
 }: {
   visible: boolean;
   onClose: () => void;
+  isManual: boolean;
 }) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   const setManual = useManualLocation(s => s.set);
+  const clearForced = useManualLocation(s => s.clearForced);
   const [picked, setPicked] = useState<PickedLocation | null>(null);
 
   const confirm = useCallback(() => {
@@ -70,6 +73,11 @@ function LocationPickerModal({
     setManual({ lat: picked.lat, lng: picked.lng, name: picked.name ?? 'Custom location' });
     onClose();
   }, [picked, setManual, onClose]);
+
+  const useGps = useCallback(() => {
+    clearForced();
+    onClose();
+  }, [clearForced, onClose]);
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -100,6 +108,12 @@ function LocationPickerModal({
           disabled={!picked}>
           <Text style={styles.confirmText}>Use this location</Text>
         </TouchableOpacity>
+        {isManual && (
+          <TouchableOpacity style={styles.useGpsBtn} onPress={useGps}>
+            <Ionicons name="navigate" size={14} color={OCEAN_BLUE} />
+            <Text style={styles.useGpsText}>Switch back to GPS location</Text>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
     </Modal>
   );
@@ -110,7 +124,7 @@ export default function NearbyScreen() {
   const isDark = scheme === 'dark';
   const [showPicker, setShowPicker] = useState(false);
 
-  const { location, loading: locLoading, isManual, locationName } = useLocation();
+  const { location, loading: locLoading, isManual, locationName, requestGps } = useLocation();
   const { data, isLoading, error, refetch } = useNearby(location);
 
   if (locLoading) {
@@ -135,44 +149,43 @@ export default function NearbyScreen() {
         </View>
         <View style={styles.center}>
           <Ionicons name="location-outline" size={56} color="#aaa" />
-          <Text style={[styles.emptyTitle, isDark && styles.textDark]}>Location needed</Text>
+          <Text style={[styles.emptyTitle, isDark && styles.textDark]}>No location set</Text>
           <Text style={[styles.hint, isDark && styles.hintDark]}>
-            Allow location access or set a location manually to discover marine life near you.
+            Use GPS or place a pin on the map to discover marine life near you.
+            Location is always optional — you can search for species without it.
           </Text>
-          <TouchableOpacity style={styles.setLocationBtn} onPress={() => setShowPicker(true)}>
-            <Ionicons name="map-outline" size={16} color="#fff" />
-            <Text style={styles.setLocationText}>Set location on map</Text>
+          <TouchableOpacity style={styles.setLocationBtn} onPress={requestGps}>
+            <Ionicons name="navigate" size={16} color="#fff" />
+            <Text style={styles.setLocationText}>Use my GPS location</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.setLocationBtnOutline} onPress={() => setShowPicker(true)}>
+            <Ionicons name="map-outline" size={16} color={OCEAN_BLUE} />
+            <Text style={styles.setLocationTextOutline}>Set location on map</Text>
           </TouchableOpacity>
         </View>
-        <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} />
+        <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
       </SafeAreaView>
     );
   }
 
-  const renderHeader = () => (
-    <View style={styles.header}>
-      <Text style={[styles.title, isDark && styles.textDark]}>Nearby</Text>
-      <Text style={styles.subtitle}>Marine life spotted in your area</Text>
-      {isManual && (
-        <TouchableOpacity
-          style={[styles.locationChip, isDark && styles.locationChipDark]}
-          onPress={() => setShowPicker(true)}>
-          <Ionicons name="location" size={13} color={OCEAN_BLUE} />
-          <Text style={styles.locationChipText} numberOfLines={1}>
-            {locationName ?? 'Custom location'}
-          </Text>
-          <Text style={styles.locationChipChange}>Change</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
+      {/* Header lives outside the FlatList so its padding doesn't compound with contentContainerStyle */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <Text style={[styles.title, isDark && styles.textDark]}>Nearby</Text>
+          <Text style={styles.subtitle}>Marine life spotted in your area</Text>
+        </View>
+        <TouchableOpacity style={styles.locationBtn} onPress={() => setShowPicker(true)}>
+          <Ionicons name={isManual ? 'location' : 'navigate'} size={28} color={OCEAN_BLUE} />
+          <Text style={[styles.locationBtnLabel, isDark && styles.locationBtnLabelDark]} numberOfLines={2}>
+            {isManual ? (locationName ?? 'Custom') : 'GPS'}
+          </Text>
+        </TouchableOpacity>
+      </View>
       <FlatList
         data={data ?? []}
         keyExtractor={item => item.taxon.id.toString()}
-        ListHeaderComponent={renderHeader}
         ListEmptyComponent={
           isLoading ? (
             <View style={styles.center}>
@@ -203,7 +216,7 @@ export default function NearbyScreen() {
         renderItem={({ item }) => <SpeciesCard item={item} />}
         contentContainerStyle={styles.list}
       />
-      <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} />
+      <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
     </SafeAreaView>
   );
 }
@@ -211,24 +224,20 @@ export default function NearbyScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f5f8fa' },
   containerDark: { backgroundColor: '#0A1628' },
-  header: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 8,
+  },
+  headerLeft: { flex: 1 },
   title: { fontSize: 28, fontWeight: '700', color: '#111' },
   textDark: { color: '#fff' },
   subtitle: { fontSize: 14, color: '#666', marginTop: 2 },
-  locationChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    alignSelf: 'flex-start',
-    backgroundColor: '#e8f4fb',
-    borderRadius: 16,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    marginTop: 8,
-  },
-  locationChipDark: { backgroundColor: '#112240' },
-  locationChipText: { fontSize: 13, color: '#333', flex: 1, maxWidth: 180 },
-  locationChipChange: { fontSize: 12, color: OCEAN_BLUE, fontWeight: '600' },
+  locationBtn: { alignItems: 'center', paddingLeft: 16, paddingVertical: 4, maxWidth: 88 },
+  locationBtnLabel: { fontSize: 11, color: '#555', marginTop: 3, textAlign: 'center' },
+  locationBtnLabelDark: { color: '#aaa' },
   list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12 },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111' },
@@ -245,6 +254,17 @@ const styles = StyleSheet.create({
     borderRadius: 24,
   },
   setLocationText: { color: '#fff', fontWeight: '600', fontSize: 15 },
+  setLocationBtnOutline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    borderWidth: 1.5,
+    borderColor: OCEAN_BLUE,
+  },
+  setLocationTextOutline: { color: OCEAN_BLUE, fontWeight: '600', fontSize: 15 },
   retryBtn: {
     marginTop: 8,
     paddingHorizontal: 20,
@@ -294,4 +314,12 @@ const styles = StyleSheet.create({
   },
   confirmBtnDisabled: { backgroundColor: '#aac8d6' },
   confirmText: { color: '#fff', fontWeight: '700', fontSize: 16 },
+  useGpsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+  },
+  useGpsText: { color: OCEAN_BLUE, fontWeight: '600', fontSize: 14 },
 });
