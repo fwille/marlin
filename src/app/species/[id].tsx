@@ -199,24 +199,27 @@ const IUCN_COLORS: Record<string, { bg: string; text: string }> = {
   DD: { bg: '#aaa', text: '#fff' },
 };
 
-function ConservationBadge({ status, isDark }: { status: INatConservationStatus; isDark: boolean }) {
+function ConservationBadge({ status, taxonName, isDark }: { status: INatConservationStatus; taxonName: string; isDark: boolean }) {
   const code = status.status?.toUpperCase() ?? 'DD';
   const colors = IUCN_COLORS[code] ?? IUCN_COLORS.DD;
   const label = status.status_name
     ? status.status_name.charAt(0).toUpperCase() + status.status_name.slice(1)
     : code;
+  const url = status.url ?? `https://www.iucnredlist.org/search?query=${encodeURIComponent(taxonName)}`;
   return (
-    <View style={[styles.conservationRow, isDark && styles.conservationRowDark]}>
+    <TouchableOpacity
+      style={[styles.conservationRow, isDark && styles.conservationRowDark]}
+      onPress={() => WebBrowser.openBrowserAsync(url)}
+      activeOpacity={0.75}>
       <View style={[styles.iucnBadge, { backgroundColor: colors.bg }]}>
         <Text style={[styles.iucnCode, { color: colors.text }]}>{code}</Text>
       </View>
       <View style={{ flex: 1 }}>
         <Text style={[styles.iucnLabel, isDark && styles.textDark]}>{label}</Text>
-        {status.authority && (
-          <Text style={styles.iucnAuthority}>{status.authority}</Text>
-        )}
+        <Text style={styles.iucnAuthority}>{status.authority ?? 'IUCN Red List'} · tap to view ↗</Text>
       </View>
-    </View>
+      <Ionicons name="open-outline" size={16} color={isDark ? '#556' : '#bbb'} />
+    </TouchableOpacity>
   );
 }
 
@@ -585,7 +588,7 @@ export default function SpeciesDetailScreen() {
 
           {/* Conservation status */}
           {conservationStatus && (
-            <ConservationBadge status={conservationStatus} isDark={isDark} />
+            <ConservationBadge status={conservationStatus} taxonName={taxon.name} isDark={isDark} />
           )}
 
           {/* Description — prefer live Wikipedia fetch, then iNat description, then cached summary.
