@@ -17,7 +17,7 @@ Marlin is a marine species identification and life-list app — like Merlin Bird
 | State | Zustand v5 |
 | Maps (native) | Leaflet 1.9.4 via `react-native-webview` + `postMessage` — no API key |
 | Maps (web) | Leaflet 1.9.4 via `<iframe srcdoc>` + `postMessage` |
-| Photos | expo-image-picker |
+| Photos | expo-image-picker (capture) + expo-image-manipulator (resize, see `lib/photoStorage`) |
 | Location | expo-location |
 | Node.js | **v22+** required — Metro breaks on v21 (`util.styleText` array support) |
 
@@ -29,23 +29,34 @@ src/
   app/
     _layout.tsx               Root layout — QueryClientProvider, SafeAreaProvider, AppInit (loads DB)
     (tabs)/
-      _layout.tsx             4 tabs: Nearby, Search, Life List, My Map
+      _layout.tsx             Tabs: Nearby, Search, Life List, Settings — plus a hidden "My Map"
       index.tsx               Nearby species (location-based)
-      search.tsx              Global species search
+      search.tsx              Global species search + ancestor-scoped browsing (tap a classification chip)
       lifelist.tsx            Personal life list with swipe-delete
-      map.tsx                 Hidden tab (href:null) — re-exports SightingsMap
+      settings.tsx            Theme, Auto Backup toggle, export/import, manual location override
+      map.tsx / map.web.tsx   Hidden tab (href:null) — re-exports SightingsMap
     species/[id].tsx          Species detail + Add Sighting modal
+    sighting/[id].tsx         Sighting detail — edit notes/location/photos, delete
   components/
-    SightingsMap.tsx          My Sightings map — native (WebView + Leaflet)
-    SightingsMap.web.tsx      My Sightings map — web (iframe + Leaflet)
-    DistributionMap.tsx       Species distribution — native (WebView + Leaflet + iNat tiles)
-    DistributionMap.web.tsx   Species distribution — web (iframe + Leaflet + iNat tiles)
-    LocationPicker.tsx        Tap-to-place map for sighting location — native (WebView + Leaflet)
-    LocationPicker.web.tsx    Tap-to-place map for sighting location — web (iframe + Leaflet)
+    SightingsMap.tsx(.web)      My Sightings map — pins colored by taxonomic group, with legend
+    DistributionMap.tsx(.web)   Species distribution — Leaflet + iNat observation tiles
+    LocationPicker.tsx(.web)    Tap-to-place map for picking a sighting's location
+    ZoomableImage.tsx           Pinch-to-zoom lightbox for sighting photos
+    themed-text.tsx, themed-view.tsx, hint-row.tsx,
+    web-badge.tsx, animated-icon.tsx(.web)   Small shared UI primitives
   db/
-    index.ts                  SQLite singleton + CRUD helpers — native
+    index.ts                  SQLite singleton + sighting CRUD + key/value settings — native
     index.web.ts              No-op stubs for web (SharedArrayBuffer unavailable in browsers)
-  store/lifelist.ts           Zustand lifelist store
+  hooks/
+    useLocation.ts            Resolves GPS or manual-override location (module-level cache)
+    useNearby.ts              Nearby-species query (TanStack Query, wraps getNearbySpecies)
+    useSearch.ts              Global species search query
+    use-color-scheme.ts(.web) Color scheme, theme-aware
+  lib/photoStorage.ts         Resize + relocate sighting photos into document storage (see Key patterns)
+  store/
+    lifelist.ts               Zustand lifelist store (sightings, optimistic add)
+    manualLocation.ts         Manual "as if I'm at…" location override, persisted via db settings
+    theme.ts                  Theme preference (system/light/dark), persisted via db settings
   types/index.ts              Shared types: INatTaxon, Sighting, NearbySpecies, …
 ```
 
@@ -83,6 +94,9 @@ const mySightings = useMemo(() => sightings.filter(s => s.speciesId === taxonId)
 
 Only selectors returning primitives (`hasSeen` → `boolean`) are safe to use directly.
 
+### Sighting photos must go through `lib/photoStorage`
+`expo-image-picker` saves into the cache directory — which Android Auto Backup excludes, and which the OS can clear at any time. `persistSightingPhoto` downscales each photo (long edge ≤1280px, JPEG q0.7) and moves it into the app's document storage so it (a) survives a backup/restore cycle and (b) doesn't blow Android's backup size quota. Always pair it with `deleteSightingPhoto` wherever a photo can be removed or replaced — including discarded Add Sighting drafts — so files don't linger as orphans. No-op on web (picker returns blob/data URIs that aren't persisted anyway).
+
 ### SQLite on web
 expo-sqlite's sync API requires `SharedArrayBuffer`, which browsers block without `COOP/COEP` headers. The `.web.ts` stubs return empty arrays / temp IDs so the web build compiles and runs. Data is not persisted between web page loads.
 
@@ -103,11 +117,16 @@ Base URL: `https://api.inaturalist.org/v1`
 | Endpoint | Used for |
 |---|---|
 | `GET /observations/species_counts` | Nearby species (pre-deduplicated, with counts) |
-| `GET /taxa` | Search species by name |
-| `GET /taxa/{id}?all_photos=true` | Species detail + photos |
-| `GET /observations` | Recent observations for a taxon |
+| `GET /taxa` | Search species by name, optionally scoped to an ancestor taxon |
+| `GET /taxa/{id}?all_photos=true` | Species detail + photos + ancestor chain |
+| `GET /observations` | Recent observations for a taxon (map pins, distribution) |
+| `GET /observations/histogram` | Monthly seasonality histogram for a taxon |
 
-Marine taxa filter: `taxon_name` in `['Actinopterygii','Mammalia','Reptilia','Mollusca','Echinodermata']`
+Marine taxa filter: a curated `MARINE_TAXON_IDS` list of `taxon_id`s (`src/api/inaturalist.ts`) — fish, sharks & rays, cephalopods, cnidarians, echinoderms, decapods, cetaceans, sirenians, sea turtles. iNaturalist ignores repeated `taxon_id[]` params, so each ID is fanned out as a parallel request and results are merged by taxon. Comments in the file explain why specific IDs were chosen over broader (but partly terrestrial) groupings like Crustacea or Mammalia.
+
+Two other APIs are layered on top, both optional and gated so the app degrades gracefully without them:
+- **Wikipedia** (`getWikipediaSummary`) — calls `en.wikipedia.org/w/api.php` directly (not iNaturalist) for the species-detail summary blurb, using the title parsed out of the taxon's `wikipedia_url`.
+- **IUCN Red List** (`getIucnStatus`) — calls `api.iucnredlist.org`, gated behind an optional `EXPO_PUBLIC_IUCN_TOKEN` in `.env.local` (`HAS_IUCN_TOKEN` flags whether it's configured); without it, conservation-status badges simply don't appear.
 
 ## Maps work in Expo Go
 
