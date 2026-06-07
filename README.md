@@ -53,7 +53,7 @@ npx expo run:ios        # build & run a native dev client on iOS
 
 Use `npx expo start --clear` to bust the Metro cache after pulling changes that touch platform-specific (`.web.ts`/`.web.tsx`) files.
 
-> The project ships with `expo-dev-client` and a few native modules (e.g. `expo-image-manipulator` for photo resizing), so `expo run:android`/`expo run:ios` — which build a custom dev client — is the most reliable way to run the full app. Maps themselves work fine in plain Expo Go too, since they're built on `react-native-webview` + Leaflet rather than any native maps SDK.
+> The project ships with `expo-dev-client` and several native modules — including a custom GMS-free location module on Android (see [CLAUDE.md](./CLAUDE.md)) — so `expo run:android`/`expo run:ios`, which build a custom dev client, is **required** to run the app on Android; Expo Go can no longer load it (it lacks that custom native module). iOS and web still run fine in Expo Go / a browser.
 
 ## Project structure
 
@@ -64,7 +64,7 @@ src/
   components/   Maps, photo viewer, and shared UI primitives
   db/           SQLite singleton, sighting CRUD, key/value settings
   hooks/        Location, search, and nearby-species data hooks
-  lib/          Photo storage (resize + relocate for backup safety)
+  lib/          Photo storage, plus platform-split location/geocoding helpers (GMS-free on Android)
   store/        Zustand stores — life list, theme, manual location override
   types/        Shared TypeScript types
 ```

@@ -17,8 +17,8 @@ Marlin is a marine species identification and life-list app — like Merlin Bird
 | State | Zustand v5 |
 | Maps (native) | Leaflet 1.9.4 via `react-native-webview` + `postMessage` — no API key |
 | Maps (web) | Leaflet 1.9.4 via `<iframe srcdoc>` + `postMessage` |
-| Photos | expo-image-picker (capture) + expo-image-manipulator (resize, see `lib/photoStorage`) |
-| Location | expo-location |
+| Photos | expo-image-picker (gallery picker — no in-app camera capture) + expo-image-manipulator (resize, see `lib/photoStorage`) |
+| Location | expo-location (iOS/web) — Android uses a local GMS-free module instead, see `modules/native-location` below |
 | Node.js | **v22+** required — Metro breaks on v21 (`util.styleText` array support) |
 
 ## Source layout
@@ -52,12 +52,18 @@ src/
     useNearby.ts              Nearby-species query (TanStack Query, wraps getNearbySpecies)
     useSearch.ts              Global species search query
     use-color-scheme.ts(.web) Color scheme, theme-aware
-  lib/photoStorage.ts         Resize + relocate sighting photos into document storage (see Key patterns)
+  lib/
+    photoStorage.ts           Resize + relocate sighting photos into document storage (see Key patterns)
+    gpsLocation.ts(.android)      Current-position + permission primitives — iOS/web wrap expo-location, Android wraps ../../modules/native-location
+    reverseGeocode.ts(.android)   Coordinates → place name — same iOS/web vs. Android split
   store/
     lifelist.ts               Zustand lifelist store (sightings, optimistic add)
     manualLocation.ts         Manual "as if I'm at…" location override, persisted via db settings
     theme.ts                  Theme preference (system/light/dark), persisted via db settings
   types/index.ts              Shared types: INatTaxon, Sighting, NearbySpecies, …
+
+modules/
+  native-location/            Local Expo module (Android-only) — GMS-free LocationManager/Geocoder backend, see Key patterns
 ```
 
 ## Key patterns
@@ -79,6 +85,14 @@ Web map components (`*.web.tsx`) use a different pattern since `react-native-web
 4. Clean up iframe and listener in the `useEffect` return.
 
 Always use a `useRef` for callbacks passed into these effects to avoid stale closures.
+
+### Android location is GMS-free (F-Droid compatibility)
+`expo-location`'s Android implementation has a hard `api`-level dependency on the proprietary `com.google.android.gms:play-services-location` (Fused Location Provider) — unavailable on de-Googled devices and a hard blocker for F-Droid distribution. Android instead uses a local Expo module at `modules/native-location/` (Kotlin, built only on AOSP `android.location.LocationManager`/`Geocoder`, which ship on every Android device regardless of Play Services):
+- `package.json` → `expo.autolinking.android.exclude: ["expo-location"]` removes `expo-location`'s Android native module from the build graph entirely — verify with `npx expo-modules-autolinking resolve --platform android --json`.
+- `lib/gpsLocation.ts`/`.android.ts` and `lib/reverseGeocode.ts`/`.android.ts` are platform-split wrappers exposing an identical API. `useLocation` and `LocationPicker` import from these — never from `expo-location` or `modules/native-location` directly — so the hook/component code stays single-sourced across platforms (same convention as `.web.ts`).
+- iOS and web are unaffected and still go through `expo-location` — its proprietary dependency only exists on Android.
+
+**Expo Go can no longer run the Android build.** `requireNativeModule('NativeLocation')` throws `Cannot find native module 'NativeLocation'` the moment `useLocation` runs (e.g. opening the Nearby tab), because Expo Go's binary doesn't contain this custom module. Use `npx expo run:android` or an EAS development build instead — see Running the project.
 
 ### Zustand selector rule — CRITICAL
 **Never return a new array or object from a Zustand selector** — it creates a new reference on every render and causes an infinite re-render loop.
@@ -128,18 +142,18 @@ Two other APIs are layered on top, both optional and gated so the app degrades g
 - **Wikipedia** (`getWikipediaSummary`) — calls `en.wikipedia.org/w/api.php` directly (not iNaturalist) for the species-detail summary blurb, using the title parsed out of the taxon's `wikipedia_url`.
 - **IUCN Red List** (`getIucnStatus`) — calls `api.iucnredlist.org`, gated behind an optional `EXPO_PUBLIC_IUCN_TOKEN` in `.env.local` (`HAS_IUCN_TOKEN` flags whether it's configured); without it, conservation-status badges simply don't appear.
 
-## Maps work in Expo Go
+## Maps render fine in Expo Go — but Android as a whole no longer runs there
 
-All maps use `react-native-webview` with Leaflet/OpenStreetMap — no Google Maps API key required. `react-native-webview` is included in Expo Go, so maps can be tested without a dev build.
+Maps use `react-native-webview` with Leaflet/OpenStreetMap (no Google Maps API key, and `react-native-webview` ships with Expo Go), so the map *components themselves* need no dev build.
 
-Run with `npx expo start` and scan the QR code in Expo Go to test on a physical device.
+However, **Expo Go can't run the Android app at all anymore**: the custom `native-location` module (see Key patterns above) isn't present in Expo Go's binary, and `useLocation` — which the Nearby tab calls on mount — throws `Cannot find native module 'NativeLocation'` immediately. iOS/web are unaffected (they still use `expo-location`, which Expo Go bundles).
 
 ## Running the project
 
 ```bash
-nvm use 22          # ensure Node 22+
-npx expo start      # web/Expo Go
-npx expo run:android  # native Android (required for maps)
+nvm use 22            # ensure Node 22+
+npx expo start        # Metro — web or iOS in Expo Go
+npx expo run:android  # native Android dev client — required (native-location + maps)
 ```
 
 Use `npx expo start --clear` to bust the Metro cache after adding `.web.ts` stubs or changing platform-specific files.
