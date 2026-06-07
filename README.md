@@ -1,4 +1,4 @@
-# Marlin 🐠
+# Marlin Ocean ID Mobile App
 
 Marlin is a marine species identification and life-list app for fish and marine life. Spot something while diving or beachcombing, look it up, and log it to your personal life list with a photo, notes, and a pinned location.
 
