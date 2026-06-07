@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Image,
   ActivityIndicator,
   Modal,
+  TextInput,
   StyleSheet,
 } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -123,9 +124,19 @@ export default function NearbyScreen() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   const [showPicker, setShowPicker] = useState(false);
+  const [query, setQuery] = useState('');
 
   const { location, loading: locLoading, isManual, locationName, requestGps } = useLocation();
   const { data, isLoading, error, refetch } = useNearby(location);
+
+  const filteredData = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return data ?? [];
+    return (data ?? []).filter(item =>
+      (item.taxon.preferred_common_name ?? '').toLowerCase().includes(q) ||
+      item.taxon.name.toLowerCase().includes(q)
+    );
+  }, [data, query]);
 
   if (locLoading) {
     return (
@@ -183,8 +194,23 @@ export default function NearbyScreen() {
           </Text>
         </TouchableOpacity>
       </View>
+      {!isLoading && !error && (data?.length ?? 0) > 0 && (
+        <View style={[styles.searchBar, isDark && styles.searchBarDark]}>
+          <Ionicons name="search" size={18} color="#888" style={styles.searchIcon} />
+          <TextInput
+            style={[styles.searchInput, isDark && styles.searchInputDark]}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Filter species near you…"
+            placeholderTextColor="#999"
+            autoCapitalize="none"
+            clearButtonMode="while-editing"
+            returnKeyType="search"
+          />
+        </View>
+      )}
       <FlatList
-        data={data ?? []}
+        data={filteredData}
         keyExtractor={item => item.taxon.id.toString()}
         ListEmptyComponent={
           isLoading ? (
@@ -204,6 +230,13 @@ export default function NearbyScreen() {
                 <Text style={styles.retryText}>Try again</Text>
               </TouchableOpacity>
             </View>
+          ) : query.trim().length > 0 ? (
+            <View style={styles.center}>
+              <Ionicons name="search-outline" size={48} color="#aaa" />
+              <Text style={[styles.hint, isDark && styles.hintDark]}>
+                No nearby species match "{query}"
+              </Text>
+            </View>
           ) : (
             <View style={styles.center}>
               <Ionicons name="fish-outline" size={48} color="#aaa" />
@@ -215,6 +248,7 @@ export default function NearbyScreen() {
         }
         renderItem={({ item }) => <SpeciesCard item={item} />}
         contentContainerStyle={styles.list}
+        keyboardDismissMode="on-drag"
       />
       <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
     </SafeAreaView>
@@ -238,6 +272,25 @@ const styles = StyleSheet.create({
   locationBtn: { alignItems: 'center', paddingLeft: 16, paddingVertical: 4, maxWidth: 88 },
   locationBtnLabel: { fontSize: 11, color: '#555', marginTop: 3, textAlign: 'center' },
   locationBtnLabelDark: { color: '#aaa' },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+  },
+  searchBarDark: { backgroundColor: '#112240' },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, fontSize: 15, color: '#111' },
+  searchInputDark: { color: '#fff' },
   list: { paddingHorizontal: 16, paddingBottom: 24, flexGrow: 1 },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12 },
   emptyTitle: { fontSize: 20, fontWeight: '700', color: '#111' },
