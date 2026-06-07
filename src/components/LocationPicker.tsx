@@ -1,7 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
-import * as Location from 'expo-location';
+import { reverseGeocode } from '@/lib/reverseGeocode';
 
 export interface PickedLocation {
   lat: number;
@@ -12,16 +12,6 @@ export interface PickedLocation {
 interface Props {
   value: PickedLocation | null;
   onChange: (loc: PickedLocation) => void;
-}
-
-async function reverseGeocode(lat: number, lng: number): Promise<string | undefined> {
-  try {
-    const [r] = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
-    if (!r) return undefined;
-    return [r.district ?? r.subregion, r.city, r.country].filter(Boolean).join(', ') || undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function buildPickerHtml(lat?: number, lng?: number): string {
