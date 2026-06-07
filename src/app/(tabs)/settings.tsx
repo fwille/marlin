@@ -237,15 +237,18 @@ export default function SettingsScreen() {
         {/* About */}
         <Text style={[styles.sectionLabel, isDark && styles.sectionLabelDark]}>ABOUT</Text>
         <View style={[styles.card, isDark && styles.cardDark]}>
-          <View style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}>
+          <TouchableOpacity
+            style={[styles.row, styles.rowBorder, isDark && styles.rowBorderDark]}
+            onPress={() => Linking.openURL('https://fwille.github.io/marlin-privacy/')}>
             <View style={styles.iconWrap}>
-              <Ionicons name="person-outline" size={20} color={isDark ? '#aaa' : '#555'} />
+              <Ionicons name="shield-checkmark-outline" size={20} color={isDark ? '#aaa' : '#555'} />
             </View>
             <View style={styles.rowText}>
-              <Text style={[styles.rowLabel, isDark && styles.textDark]}>Developer</Text>
-              <Text style={styles.rowSub}>Fiona Wille</Text>
+              <Text style={[styles.rowLabel, isDark && styles.textDark]}>Privacy policy</Text>
+              <Text style={styles.rowSub}>How Marlin handles your data</Text>
             </View>
-          </View>
+            <Ionicons name="open-outline" size={16} color={isDark ? '#555' : '#bbb'} />
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.row}
             onPress={() => Linking.openURL('https://www.inaturalist.org')}>
