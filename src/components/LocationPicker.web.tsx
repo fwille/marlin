@@ -28,7 +28,7 @@ function buildPickerHtml(lat?: number, lng?: number): string {
 <script>
   var map = L.map('map').setView(
     [${hasPin ? lat : 20},${hasPin ? lng : 0}],
-    ${hasPin ? 10 : 2}
+    ${hasPin ? 14 : 2}
   );
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'\\u00a9 OpenStreetMap'
@@ -53,12 +53,20 @@ function buildPickerHtml(lat?: number, lng?: number): string {
     document.getElementById('hint').style.display='none';
     send(e.latlng.lat,e.latlng.lng);
   });
+
+  window.seedLocation=function(lat,lng){
+    if(marker){ marker.setLatLng([lat,lng]); }
+    else{ marker=L.marker([lat,lng],{draggable:true}).addTo(map); attachDrag(marker); }
+    document.getElementById('hint').style.display='none';
+    map.setView([lat,lng],14);
+  };
 <\/script>
 </body></html>`;
 }
 
 export default function LocationPicker({ value, onChange }: Props) {
   const containerRef = useRef<any>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   // Always call the latest onChange even though the effect runs once.
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
@@ -70,6 +78,7 @@ export default function LocationPicker({ value, onChange }: Props) {
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
     iframe.srcdoc = buildPickerHtml(value?.lat, value?.lng);
+    iframeRef.current = iframe;
     el.appendChild(iframe);
 
     const handleMessage = (e: MessageEvent) => {
@@ -83,8 +92,21 @@ export default function LocationPicker({ value, onChange }: Props) {
     return () => {
       if (el.contains(iframe)) el.removeChild(iframe);
       window.removeEventListener('message', handleMessage);
+      iframeRef.current = null;
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // `value` often starts null and is seeded asynchronously (e.g. GPS resolves
+  // after this picker has already mounted, as in the Add Sighting modal). The
+  // iframe's HTML is built once above, so reload it once with the seed baked
+  // in — only the first time, so we don't fight the user's own taps/drags.
+  const seededRef = useRef(!!value);
+  useEffect(() => {
+    if (!seededRef.current && value && iframeRef.current) {
+      seededRef.current = true;
+      iframeRef.current.srcdoc = buildPickerHtml(value.lat, value.lng);
+    }
+  }, [value]);
 
   return <View ref={containerRef} style={styles.map} />;
 }

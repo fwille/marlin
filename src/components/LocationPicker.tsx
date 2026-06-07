@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react';
+import { useRef, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import * as Location from 'expo-location';
@@ -44,7 +44,7 @@ function buildPickerHtml(lat?: number, lng?: number): string {
 <script>
   var map = L.map('map').setView(
     [${hasPin ? lat : 20},${hasPin ? lng : 0}],
-    ${hasPin ? 10 : 2}
+    ${hasPin ? 14 : 2}
   );
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap'
@@ -69,6 +69,13 @@ function buildPickerHtml(lat?: number, lng?: number): string {
     document.getElementById('hint').style.display='none';
     send(e.latlng.lat,e.latlng.lng);
   });
+
+  window.seedLocation=function(lat,lng){
+    if(marker){ marker.setLatLng([lat,lng]); }
+    else{ marker=L.marker([lat,lng],{draggable:true}).addTo(map); attachDrag(marker); }
+    document.getElementById('hint').style.display='none';
+    map.setView([lat,lng],14);
+  };
 <\/script>
 </body></html>`;
 }
@@ -78,6 +85,38 @@ export default function LocationPicker({ value, onChange }: Props) {
   onChangeRef.current = onChange;
 
   const htmlRef = useRef(buildPickerHtml(value?.lat, value?.lng));
+  const webViewRef = useRef<WebView>(null);
+
+  // `value` often starts null and is seeded asynchronously (e.g. GPS resolves
+  // after this picker has already mounted, as in the Add Sighting modal). The
+  // WebView's HTML is built once above, so a later seed needs to reach the map
+  // via injectJavaScript — but only once the page has actually finished loading
+  // (window.seedLocation doesn't exist yet otherwise, and injectJavaScript calls
+  // made too early are silently dropped, not queued — that's what made this
+  // unreliable). Track both "page loaded" and "value arrived" and seed once both
+  // are true, whichever order they happen in — and only the first time, so we
+  // don't fight the user's own taps/drags.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const readyRef = useRef(false);
+  const seededRef = useRef(!!value);
+
+  const seedIfReady = useCallback(() => {
+    if (seededRef.current || !readyRef.current) return;
+    const v = valueRef.current;
+    if (!v) return;
+    seededRef.current = true;
+    webViewRef.current?.injectJavaScript(`window.seedLocation(${v.lat},${v.lng}); true;`);
+  }, []);
+
+  const handleLoadEnd = useCallback(() => {
+    readyRef.current = true;
+    seedIfReady();
+  }, [seedIfReady]);
+
+  useEffect(() => {
+    seedIfReady();
+  }, [value, seedIfReady]);
 
   const handleMessage = useCallback(async (event: WebViewMessageEvent) => {
     try {
@@ -92,9 +131,11 @@ export default function LocationPicker({ value, onChange }: Props) {
   return (
     <View style={styles.container}>
       <WebView
+        ref={webViewRef}
         style={styles.map}
         source={{ html: htmlRef.current }}
         onMessage={handleMessage}
+        onLoadEnd={handleLoadEnd}
         scrollEnabled={false}
         originWhitelist={['*']}
         javaScriptEnabled
