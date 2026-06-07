@@ -92,20 +92,22 @@ export default function SearchScreen() {
 
   const { data, isLoading, isFetching } = ancestorId !== null ? ancestorQuery : globalQuery;
 
-  // Browsing into a classification group (e.g. tapping "Carcharhinidae" on a
-  // shark's page) is most useful narrowed to species actually seen near you —
-  // otherwise you're staring at a worldwide list of dozens of lookalikes. Default
-  // that narrowing on whenever a fresh group is opened, but let it be dismissed.
+  // "Seen near you" narrows results to species actually recorded in the user's
+  // area. Browsing into a classification group (e.g. tapping "Carcharhinidae" on
+  // a shark's page) is most useful narrowed this way by default — otherwise
+  // you're staring at a worldwide list of dozens of lookalikes. Global search is
+  // for discovery though, so it starts unfiltered there; the toggle is available
+  // either way.
   const { location } = useLocation();
   const { data: nearbySpecies } = useNearby(location);
   const nearbyIds = useMemo(
     () => new Set((nearbySpecies ?? []).map(n => n.taxon.id)),
     [nearbySpecies]
   );
-  const [nearbyOnly, setNearbyOnly] = useState(true);
-  useEffect(() => { setNearbyOnly(true); }, [ancestorId]);
+  const [nearbyOnly, setNearbyOnly] = useState(false);
+  useEffect(() => { setNearbyOnly(ancestorId !== null); }, [ancestorId]);
 
-  const nearbyFilterActive = ancestorId !== null && !!location && nearbyOnly;
+  const nearbyFilterActive = !!location && nearbyOnly;
   const displayData = useMemo(() => {
     if (!nearbyFilterActive) return data ?? [];
     return (data ?? []).filter(t => nearbyIds.has(t.id));
@@ -117,30 +119,42 @@ export default function SearchScreen() {
         <Text style={[styles.title, isDark && styles.textDark]}>Search</Text>
       </View>
 
-      {/* Ancestor scope banner */}
-      {ancestorId !== null && ancestorLabel && (
+      {/* Scope banners: ancestor group (when browsing classifications) and the
+          "seen near you" toggle (available whenever a location is known) */}
+      {(ancestorId !== null || !!location) && (
         <View style={styles.bannerRow}>
-          <View style={[styles.scopeBanner, isDark && styles.scopeBannerDark]}>
-            <Ionicons name="filter" size={14} color={OCEAN_BLUE} />
-            <Text style={[styles.scopeLabel, isDark && styles.scopeLabelDark]} numberOfLines={1}>
-              {ancestorLabel}
-            </Text>
-            <TouchableOpacity
-              hitSlop={8}
-              onPress={() => router.setParams({ ancestorId: undefined, ancestorLabel: undefined })}>
-              <Ionicons name="close-circle" size={18} color={isDark ? '#556' : '#aaa'} />
-            </TouchableOpacity>
-          </View>
-          {nearbyFilterActive && (
+          {ancestorId !== null && ancestorLabel && (
             <View style={[styles.scopeBanner, isDark && styles.scopeBannerDark]}>
-              <Ionicons name="navigate" size={14} color={OCEAN_BLUE} />
+              <Ionicons name="filter" size={14} color={OCEAN_BLUE} />
               <Text style={[styles.scopeLabel, isDark && styles.scopeLabelDark]} numberOfLines={1}>
-                Seen near you
+                {ancestorLabel}
               </Text>
-              <TouchableOpacity hitSlop={8} onPress={() => setNearbyOnly(false)}>
+              <TouchableOpacity
+                hitSlop={8}
+                onPress={() => router.setParams({ ancestorId: undefined, ancestorLabel: undefined })}>
                 <Ionicons name="close-circle" size={18} color={isDark ? '#556' : '#aaa'} />
               </TouchableOpacity>
             </View>
+          )}
+          {!!location && (
+            <TouchableOpacity
+              style={[
+                styles.scopeBanner,
+                isDark && styles.scopeBannerDark,
+                nearbyFilterActive && styles.scopeBannerActive,
+              ]}
+              onPress={() => setNearbyOnly(v => !v)}>
+              <Ionicons name="navigate" size={14} color={nearbyFilterActive ? '#fff' : OCEAN_BLUE} />
+              <Text
+                style={[
+                  styles.scopeLabel,
+                  isDark && styles.scopeLabelDark,
+                  nearbyFilterActive && styles.scopeLabelActive,
+                ]}
+                numberOfLines={1}>
+                Seen near you
+              </Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -167,31 +181,29 @@ export default function SearchScreen() {
         contentContainerStyle={styles.list}
         keyboardDismissMode="on-drag"
         ListEmptyComponent={
-          ancestorId !== null ? (
-            isLoading ? (
-              <View style={styles.empty}>
-                <ActivityIndicator size="large" color={OCEAN_BLUE} />
-              </View>
-            ) : nearbyFilterActive && (data?.length ?? 0) > 0 ? (
-              <View style={styles.empty}>
-                <Ionicons name="navigate-outline" size={48} color="#ccc" />
-                <Text style={[styles.emptyTitle, isDark && styles.textDark]}>
-                  None seen near you yet
-                </Text>
-                <Text style={styles.emptyHint}>
-                  {data!.length} species in this group {data!.length === 1 ? 'is' : 'are'} known worldwide, but none {data!.length === 1 ? 'has' : 'have'} been recorded nearby.
-                </Text>
-                <TouchableOpacity onPress={() => setNearbyOnly(false)}>
-                  <Text style={styles.clearFilterLink}>Show all {data!.length}</Text>
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={styles.empty}>
-                <Text style={[styles.emptyHint, isDark && { color: '#aaa' }]}>
-                  No species found
-                </Text>
-              </View>
-            )
+          isLoading ? (
+            <View style={styles.empty}>
+              <ActivityIndicator size="large" color={OCEAN_BLUE} />
+            </View>
+          ) : nearbyFilterActive && (data?.length ?? 0) > 0 ? (
+            <View style={styles.empty}>
+              <Ionicons name="navigate-outline" size={48} color="#ccc" />
+              <Text style={[styles.emptyTitle, isDark && styles.textDark]}>
+                None seen near you yet
+              </Text>
+              <Text style={styles.emptyHint}>
+                {data!.length} matching {data!.length === 1 ? 'species is' : 'species are'} known, but none {data!.length === 1 ? 'has' : 'have'} been recorded near you.
+              </Text>
+              <TouchableOpacity onPress={() => setNearbyOnly(false)}>
+                <Text style={styles.clearFilterLink}>Show all {data!.length}</Text>
+              </TouchableOpacity>
+            </View>
+          ) : ancestorId !== null ? (
+            <View style={styles.empty}>
+              <Text style={[styles.emptyHint, isDark && { color: '#aaa' }]}>
+                No species found
+              </Text>
+            </View>
           ) : query.trim().length < 2 ? (
             <View style={styles.empty}>
               <Ionicons name="fish-outline" size={56} color="#ccc" />
@@ -202,10 +214,6 @@ export default function SearchScreen() {
                 Search by common name or scientific name.{'\n'}Includes fish, sharks, marine
                 mammals, molluscs and more.
               </Text>
-            </View>
-          ) : isLoading ? (
-            <View style={styles.empty}>
-              <ActivityIndicator size="large" color={OCEAN_BLUE} />
             </View>
           ) : (
             <View style={styles.empty}>
@@ -244,8 +252,10 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   scopeBannerDark: { backgroundColor: '#0d2035' },
+  scopeBannerActive: { backgroundColor: OCEAN_BLUE },
   scopeLabel: { fontSize: 13, color: OCEAN_BLUE, fontWeight: '600', flex: 1 },
   scopeLabelDark: { color: '#5ab4d8' },
+  scopeLabelActive: { color: '#fff' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
