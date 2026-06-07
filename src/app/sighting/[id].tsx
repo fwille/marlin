@@ -19,6 +19,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import { File } from 'expo-file-system';
+import { persistSightingPhoto, deleteSightingPhoto } from '@/lib/photoStorage';
 import { useLifelist } from '@/store/lifelist';
 import LocationPicker, { PickedLocation } from '@/components/LocationPicker';
 
@@ -95,8 +96,8 @@ export default function SightingDetailScreen() {
       allowsMultipleSelection: true,
     });
     if (!result.canceled && sighting) {
-      const newUris = result.assets.map(a => a.uri);
-      const merged = [...(sighting.photoUris ?? []), ...newUris];
+      const persisted = await Promise.all(result.assets.map(a => persistSightingPhoto(a.uri)));
+      const merged = [...(sighting.photoUris ?? []), ...persisted];
       updateSighting(sighting.id, { photoUris: merged });
     }
   };
@@ -109,8 +110,10 @@ export default function SightingDetailScreen() {
         text: 'Remove',
         style: 'destructive',
         onPress: () => {
+          const removedUri = (sighting.photoUris ?? [])[index];
           const updated = (sighting.photoUris ?? []).filter((_, i) => i !== index);
           updateSighting(sighting.id, { photoUris: updated });
+          if (removedUri) deleteSightingPhoto(removedUri);
           if (lightboxIndex !== null) setLightboxIndex(null);
         },
       },
@@ -125,8 +128,9 @@ export default function SightingDetailScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7 });
     if (!result.canceled && sighting) {
+      const persisted = await persistSightingPhoto(result.assets[0].uri);
       const updated = [...(sighting.photoUris ?? [])];
-      updated[index] = result.assets[0].uri;
+      updated[index] = persisted;
       updateSighting(sighting.id, { photoUris: updated });
     }
   };
@@ -142,6 +146,7 @@ export default function SightingDetailScreen() {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
+            (sighting.photoUris ?? []).forEach(deleteSightingPhoto);
             removeSighting(sighting.id);
             router.back();
           },

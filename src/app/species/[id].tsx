@@ -19,6 +19,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
 import * as WebBrowser from 'expo-web-browser';
+import { persistSightingPhoto, deleteSightingPhoto } from '@/lib/photoStorage';
 import { getTaxon, getRecentObservations, getMonthlyHistogram, getWikipediaSummary, getIucnStatus, HAS_IUCN_TOKEN } from '@/api/inaturalist';
 import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
@@ -273,7 +274,10 @@ function AddSightingModal({
       quality: 0.7,
       allowsMultipleSelection: true,
     });
-    if (!result.canceled) setPhotoUris(prev => [...prev, ...result.assets.map(a => a.uri)]);
+    if (!result.canceled) {
+      const persisted = await Promise.all(result.assets.map(a => persistSightingPhoto(a.uri)));
+      setPhotoUris(prev => [...prev, ...persisted]);
+    }
   };
 
   const handleAdd = () => {
@@ -284,12 +288,19 @@ function AddSightingModal({
     setPhotoUris([]);
   };
 
+  // Discard any photos staged but never submitted, so they don't linger as orphans.
+  const handleClose = () => {
+    photoUris.forEach(deleteSightingPhoto);
+    setPhotoUris([]);
+    onClose();
+  };
+
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="pageSheet">
       <SafeAreaView style={[styles.modalContainer, isDark && styles.modalContainerDark]}>
         <View style={styles.modalHeader}>
           <Text style={[styles.modalTitle, isDark && styles.textDark]}>Log Sighting</Text>
-          <TouchableOpacity onPress={onClose}>
+          <TouchableOpacity onPress={handleClose}>
             <Ionicons name="close" size={24} color={isDark ? '#fff' : '#333'} />
           </TouchableOpacity>
         </View>
@@ -328,7 +339,10 @@ function AddSightingModal({
                 <Image source={{ uri }} style={styles.photoPreview} />
                 <TouchableOpacity
                   style={styles.photoRemove}
-                  onPress={() => setPhotoUris(prev => prev.filter((_, j) => j !== i))}>
+                  onPress={() => {
+                    deleteSightingPhoto(uri);
+                    setPhotoUris(prev => prev.filter((_, j) => j !== i));
+                  }}>
                   <Ionicons name="close-circle" size={20} color="#cc4444" />
                 </TouchableOpacity>
               </View>

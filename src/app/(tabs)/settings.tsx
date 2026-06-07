@@ -217,13 +217,19 @@ export default function SettingsScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="checkmark-circle" size={15} color="#2e7d32" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Sighting records — species, date, location, notes
+              Sighting records — species, date, location, notes. Covered by both Android Auto Backup and manual export/import.
             </Text>
           </View>
           <View style={styles.infoRow}>
-            <Ionicons name="close-circle" size={15} color="#c62828" style={styles.infoIcon} />
+            <Ionicons name="alert-circle" size={15} color="#e65100" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Photos you took yourself — stored on your device only. Back them up separately (e.g. via Google Photos). After a restore, open each sighting to re-link your photos.
+              Your own sighting photos — resized and included in Android Auto Backup automatically, but not in manual export/import: that's plain text and can't carry image files.
+            </Text>
+          </View>
+          <View style={styles.infoRow}>
+            <Ionicons name="information-circle" size={15} color="#1a73e8" style={styles.infoIcon} />
+            <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
+              Heads up: a very large photo library can exceed Android's backup size limit. If a photo ever turns up missing after a restore, open the sighting and tap it to re-attach it.
             </Text>
           </View>
         </View>
