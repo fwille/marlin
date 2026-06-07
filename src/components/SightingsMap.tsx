@@ -12,15 +12,38 @@ import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { File } from 'expo-file-system';
+import { useQueries } from '@tanstack/react-query';
 import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
+import { getTaxon } from '@/api/inaturalist';
 
 const OCEAN_BLUE = '#006994';
+
+// True taxonomic "family" would yield dozens of near-indistinguishable colors
+// across a life list — iNaturalist's broad `iconic_taxon_name` groupings (the
+// same classes the marine search already filters on) make a far more readable
+// map legend, so pins are colored by those instead.
+const GROUP_INFO: Record<string, { label: string; color: string }> = {
+  Actinopterygii: { label: 'Fish', color: '#1976d2' },
+  Chondrichthyes: { label: 'Sharks & Rays', color: '#c62828' },
+  Mollusca: { label: 'Mollusks', color: '#f9a825' },
+  Cnidaria: { label: 'Jellyfish & Corals', color: '#d81b60' },
+  Echinodermata: { label: 'Starfish & Urchins', color: '#00897b' },
+  Arthropoda: { label: 'Crabs & Shrimp', color: '#6d4c41' },
+  Mammalia: { label: 'Marine Mammals', color: '#6a1b9a' },
+  Reptilia: { label: 'Sea Turtles', color: '#2e7d32' },
+};
+const OTHER_GROUP = { label: 'Other', color: '#757575' };
+
+function groupFor(iconicTaxonName?: string): { label: string; color: string } {
+  return (iconicTaxonName && GROUP_INFO[iconicTaxonName]) || OTHER_GROUP;
+}
 
 interface Point {
   lat: number; lng: number;
   name: string; date: string; locationName: string;
   speciesId: number; photoUri: string; imageUrl: string;
+  color: string;
 }
 
 function buildMapHtml(points: Point[]): string {
@@ -55,7 +78,7 @@ function buildMapHtml(points: Point[]): string {
     var img=(p.photoUri||p.imageUrl)?'<img class="pop-img" src="'+(p.photoUri||p.imageUrl)+'">':'';
     var loc=p.locationName?'<div class="pop-sub">'+p.locationName+'<\/div>':'';
     var html='<div style="min-width:150px">'+img+'<div class="pop-name">'+p.name+'<\/div><div class="pop-sub">'+p.date+'<\/div>'+loc+'<div class="pop-link" onclick="nav('+p.speciesId+')">View species →<\/div><\/div>';
-    var m=L.marker([p.lat,p.lng]).addTo(map).bindPopup(html);
+    var m=L.circleMarker([p.lat,p.lng],{radius:8,weight:2,color:'#fff',fillColor:p.color,fillOpacity:0.9}).addTo(map).bindPopup(html);
     m._speciesName=p.name.toLowerCase();
     allMarkers.push(m);
   });
@@ -83,6 +106,32 @@ export default function SightingsMap() {
   const { location } = useLocation();
   const [query, setQuery] = useState('');
 
+  // Look up each species' broad taxonomic group (cached — reuses the species
+  // detail screen's ['taxon', id] cache, so most of these resolve instantly).
+  const speciesIds = useMemo(() => [...new Set(sightings.map(s => s.speciesId))], [sightings]);
+  const taxonResults = useQueries({
+    queries: speciesIds.map(id => ({
+      queryKey: ['taxon', id],
+      queryFn: () => getTaxon(id),
+      staleTime: Infinity,
+      gcTime: 24 * 60 * 60 * 1000,
+    })),
+  });
+  const groupById = useMemo(() => {
+    const map = new Map<number, string | undefined>();
+    speciesIds.forEach((id, i) => map.set(id, taxonResults[i]?.data?.iconic_taxon_name));
+    return map;
+  }, [speciesIds, taxonResults]);
+
+  const legendGroups = useMemo(() => {
+    const seen = new Map<string, { label: string; color: string }>();
+    for (const id of speciesIds) {
+      const g = groupFor(groupById.get(id));
+      if (!seen.has(g.label)) seen.set(g.label, g);
+    }
+    return [...seen.values()];
+  }, [speciesIds, groupById]);
+
   const allPoints = useMemo<Point[]>(
     () =>
       sightings
@@ -95,8 +144,9 @@ export default function SightingsMap() {
           speciesId: s.speciesId,
           photoUri: s.photoUris?.[0] ?? '',
           imageUrl: s.imageUrl ?? '',
+          color: groupFor(groupById.get(s.speciesId)).color,
         })),
-    [sightings]
+    [sightings, groupById]
   );
 
   // Resolve local file:// URIs to base64 data URIs so the WebView can display them.
@@ -201,6 +251,17 @@ export default function SightingsMap() {
         )}
       </View>
 
+      {legendGroups.length > 0 && (
+        <View style={[styles.legend, isDark && styles.legendDark]}>
+          {legendGroups.map(g => (
+            <View key={g.label} style={styles.legendRow}>
+              <View style={[styles.legendDot, { backgroundColor: g.color }]} />
+              <Text style={[styles.legendLabel, isDark && styles.textLight]}>{g.label}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {location && (
         <TouchableOpacity
           style={styles.locationBtn}
@@ -245,6 +306,26 @@ const styles = StyleSheet.create({
   filterBarDark: { backgroundColor: 'rgba(10,22,40,0.95)' },
   filterInput: { flex: 1, fontSize: 14, color: '#111', padding: 0 },
   filterCount: { fontSize: 12, color: '#888' },
+  legend: {
+    position: 'absolute',
+    bottom: 24,
+    left: 12,
+    maxWidth: 170,
+    gap: 5,
+    backgroundColor: 'rgba(255,255,255,0.95)',
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 4,
+  },
+  legendDark: { backgroundColor: 'rgba(10,22,40,0.95)' },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendDot: { width: 10, height: 10, borderRadius: 5 },
+  legendLabel: { fontSize: 11, color: '#333', flexShrink: 1 },
   locationBtn: {
     position: 'absolute',
     bottom: 24,
