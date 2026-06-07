@@ -39,7 +39,7 @@ async function apiFetch<T>(endpoint: string, params: URLSearchParams): Promise<T
 /**
  * Returns deduplicated species counts observed near a coordinate.
  * Fans out into one request per marine taxon group, merges by taxon ID,
- * and returns the top 50 by observation count.
+ * and returns all of them sorted by observation count.
  */
 export async function getNearbySpecies(
   lat: number,
@@ -54,7 +54,7 @@ export async function getNearbySpecies(
         radius: radiusKm.toString(),
         taxon_id: taxonId.toString(),
         photos: 'true',
-        per_page: '30',
+        per_page: '500', // iNaturalist's hard ceiling for this endpoint — effectively "all of them"
       });
       return apiFetch<{ results: NearbySpecies[] }>('/observations/species_counts', params)
         .then(d => d.results)
@@ -72,7 +72,7 @@ export async function getNearbySpecies(
     }
   }
 
-  return [...byId.values()].sort((a, b) => b.count - a.count).slice(0, 50);
+  return [...byId.values()].sort((a, b) => b.count - a.count);
 }
 
 /**

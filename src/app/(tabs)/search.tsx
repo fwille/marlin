@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import { useSearch } from '@/hooks/useSearch';
+import { useLocation } from '@/hooks/useLocation';
+import { useNearby } from '@/hooks/useNearby';
 import { searchTaxaInAncestor } from '@/api/inaturalist';
 import { useLifelist } from '@/store/lifelist';
 import { INatTaxon, getTaxonPhotoUrl } from '@/types';
@@ -90,6 +92,25 @@ export default function SearchScreen() {
 
   const { data, isLoading, isFetching } = ancestorId !== null ? ancestorQuery : globalQuery;
 
+  // Browsing into a classification group (e.g. tapping "Carcharhinidae" on a
+  // shark's page) is most useful narrowed to species actually seen near you —
+  // otherwise you're staring at a worldwide list of dozens of lookalikes. Default
+  // that narrowing on whenever a fresh group is opened, but let it be dismissed.
+  const { location } = useLocation();
+  const { data: nearbySpecies } = useNearby(location);
+  const nearbyIds = useMemo(
+    () => new Set((nearbySpecies ?? []).map(n => n.taxon.id)),
+    [nearbySpecies]
+  );
+  const [nearbyOnly, setNearbyOnly] = useState(true);
+  useEffect(() => { setNearbyOnly(true); }, [ancestorId]);
+
+  const nearbyFilterActive = ancestorId !== null && !!location && nearbyOnly;
+  const displayData = useMemo(() => {
+    if (!nearbyFilterActive) return data ?? [];
+    return (data ?? []).filter(t => nearbyIds.has(t.id));
+  }, [data, nearbyFilterActive, nearbyIds]);
+
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]}>
       <View style={styles.header}>
@@ -98,16 +119,29 @@ export default function SearchScreen() {
 
       {/* Ancestor scope banner */}
       {ancestorId !== null && ancestorLabel && (
-        <View style={[styles.scopeBanner, isDark && styles.scopeBannerDark]}>
-          <Ionicons name="filter" size={14} color={OCEAN_BLUE} />
-          <Text style={[styles.scopeLabel, isDark && styles.scopeLabelDark]} numberOfLines={1}>
-            {ancestorLabel}
-          </Text>
-          <TouchableOpacity
-            hitSlop={8}
-            onPress={() => router.setParams({ ancestorId: undefined, ancestorLabel: undefined })}>
-            <Ionicons name="close-circle" size={18} color={isDark ? '#556' : '#aaa'} />
-          </TouchableOpacity>
+        <View style={styles.bannerRow}>
+          <View style={[styles.scopeBanner, isDark && styles.scopeBannerDark]}>
+            <Ionicons name="filter" size={14} color={OCEAN_BLUE} />
+            <Text style={[styles.scopeLabel, isDark && styles.scopeLabelDark]} numberOfLines={1}>
+              {ancestorLabel}
+            </Text>
+            <TouchableOpacity
+              hitSlop={8}
+              onPress={() => router.setParams({ ancestorId: undefined, ancestorLabel: undefined })}>
+              <Ionicons name="close-circle" size={18} color={isDark ? '#556' : '#aaa'} />
+            </TouchableOpacity>
+          </View>
+          {nearbyFilterActive && (
+            <View style={[styles.scopeBanner, isDark && styles.scopeBannerDark]}>
+              <Ionicons name="navigate" size={14} color={OCEAN_BLUE} />
+              <Text style={[styles.scopeLabel, isDark && styles.scopeLabelDark]} numberOfLines={1}>
+                Seen near you
+              </Text>
+              <TouchableOpacity hitSlop={8} onPress={() => setNearbyOnly(false)}>
+                <Ionicons name="close-circle" size={18} color={isDark ? '#556' : '#aaa'} />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       )}
 
@@ -127,7 +161,7 @@ export default function SearchScreen() {
       </View>
 
       <FlatList
-        data={data ?? []}
+        data={displayData}
         keyExtractor={item => item.id.toString()}
         renderItem={({ item }) => <TaxonCard taxon={item} />}
         contentContainerStyle={styles.list}
@@ -137,6 +171,19 @@ export default function SearchScreen() {
             isLoading ? (
               <View style={styles.empty}>
                 <ActivityIndicator size="large" color={OCEAN_BLUE} />
+              </View>
+            ) : nearbyFilterActive && (data?.length ?? 0) > 0 ? (
+              <View style={styles.empty}>
+                <Ionicons name="navigate-outline" size={48} color="#ccc" />
+                <Text style={[styles.emptyTitle, isDark && styles.textDark]}>
+                  None seen near you yet
+                </Text>
+                <Text style={styles.emptyHint}>
+                  {data!.length} species in this group {data!.length === 1 ? 'is' : 'are'} known worldwide, but none {data!.length === 1 ? 'has' : 'have'} been recorded nearby.
+                </Text>
+                <TouchableOpacity onPress={() => setNearbyOnly(false)}>
+                  <Text style={styles.clearFilterLink}>Show all {data!.length}</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               <View style={styles.empty}>
@@ -179,12 +226,17 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
   title: { fontSize: 28, fontWeight: '700', color: '#111' },
   textDark: { color: '#fff' },
+  bannerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginHorizontal: 16,
+    marginBottom: 6,
+  },
   scopeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginHorizontal: 16,
-    marginBottom: 6,
     backgroundColor: '#e0eef5',
     borderRadius: 20,
     paddingHorizontal: 12,
@@ -223,6 +275,7 @@ const styles = StyleSheet.create({
   },
   emptyTitle: { fontSize: 18, fontWeight: '600', color: '#333' },
   emptyHint: { fontSize: 14, color: '#888', textAlign: 'center', paddingHorizontal: 32 },
+  clearFilterLink: { fontSize: 14, color: OCEAN_BLUE, fontWeight: '600', marginTop: 4 },
   card: {
     flexDirection: 'row',
     backgroundColor: '#fff',
