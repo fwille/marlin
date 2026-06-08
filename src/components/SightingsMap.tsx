@@ -150,8 +150,12 @@ export default function SightingsMap() {
   );
 
   // Resolve local file:// URIs to base64 data URIs so the WebView can display them.
+  // The early reset clears stale points from a previous (non-empty) sightings list
+  // before the async resolution below kicks in for the new one — genuinely async
+  // external work, not state derivable during render.
   const [resolvedPoints, setResolvedPoints] = useState<Point[]>([]);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (allPoints.length === 0) { setResolvedPoints([]); return; }
     let cancelled = false;
     (async () => {

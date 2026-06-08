@@ -63,6 +63,27 @@ export default function SightingDetailScreen() {
   );
   const [locationName, setLocationName] = useState(sighting?.locationName ?? '');
 
+  const photos = useMemo(() => sighting?.photoUris ?? [], [sighting?.photoUris]);
+
+  // Detect which local photos no longer exist on this device (e.g. after a backup restore).
+  const brokenIndices = useMemo(() => new Set(
+    photos
+      .map((uri, i) => ({ uri, i }))
+      .filter(({ uri }) => uri.startsWith('file://') && !new File(uri).exists)
+      .map(({ i }) => i)
+  ), [photos]);
+
+  // lightboxPhotos contains only viewable (non-broken) photos.
+  // lightboxToGallery[lightboxIndex] gives the original photos[] index (needed for remove).
+  const lightboxPhotos = useMemo(() => photos.filter((_, i) => !brokenIndices.has(i)), [photos, brokenIndices]);
+  const lightboxToGallery = useMemo(() => photos.map((_, i) => i).filter(i => !brokenIndices.has(i)), [photos, brokenIndices]);
+  const galleryToLightbox = useMemo(() => {
+    const map = new Map<number, number>();
+    let li = 0;
+    photos.forEach((_, i) => { if (!brokenIndices.has(i)) map.set(i, li++); });
+    return map;
+  }, [photos, brokenIndices]);
+
   const handleLocationChange = useCallback((loc: PickedLocation) => {
     setLocationCoords(loc);
     if (loc.name) setLocationName(loc.name);
@@ -168,27 +189,6 @@ export default function SightingDetailScreen() {
       </SafeAreaView>
     );
   }
-
-  const photos = sighting.photoUris ?? [];
-
-  // Detect which local photos no longer exist on this device (e.g. after a backup restore).
-  const brokenIndices = useMemo(() => new Set(
-    photos
-      .map((uri, i) => ({ uri, i }))
-      .filter(({ uri }) => uri.startsWith('file://') && !new File(uri).exists)
-      .map(({ i }) => i)
-  ), [photos]);
-
-  // lightboxPhotos contains only viewable (non-broken) photos.
-  // lightboxToGallery[lightboxIndex] gives the original photos[] index (needed for remove).
-  const lightboxPhotos = useMemo(() => photos.filter((_, i) => !brokenIndices.has(i)), [photos, brokenIndices]);
-  const lightboxToGallery = useMemo(() => photos.map((_, i) => i).filter(i => !brokenIndices.has(i)), [photos, brokenIndices]);
-  const galleryToLightbox = useMemo(() => {
-    const map = new Map<number, number>();
-    let li = 0;
-    photos.forEach((_, i) => { if (!brokenIndices.has(i)) map.set(i, li++); });
-    return map;
-  }, [photos, brokenIndices]);
 
   return (
     <SafeAreaView style={[styles.container, isDark && styles.containerDark]} edges={['top']}>

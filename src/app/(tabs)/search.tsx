@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -74,9 +74,13 @@ export default function SearchScreen() {
 
   const [query, setQuery] = useState(q ?? '');
 
-  useEffect(() => {
+  // Sync local query with the `q` route param when it changes (e.g. a fresh
+  // search from elsewhere), without fighting the user's own typing in between.
+  const [prevQ, setPrevQ] = useState(q);
+  if (q !== prevQ) {
+    setPrevQ(q);
     if (q) setQuery(q);
-  }, [q]);
+  }
 
   // When browsing within an ancestor group, use ancestor-scoped search.
   // Otherwise fall back to the global marine taxa fan-out search.
@@ -104,8 +108,14 @@ export default function SearchScreen() {
     () => new Set((nearbySpecies ?? []).map(n => n.taxon.id)),
     [nearbySpecies]
   );
-  const [nearbyOnly, setNearbyOnly] = useState(false);
-  useEffect(() => { setNearbyOnly(ancestorId !== null); }, [ancestorId]);
+  // Default the "seen near you" toggle on whenever we enter (or leave) an
+  // ancestor-scoped browse — but let the user override it freely afterwards.
+  const [nearbyOnly, setNearbyOnly] = useState(ancestorId !== null);
+  const [prevAncestorId, setPrevAncestorId] = useState(ancestorId);
+  if (ancestorId !== prevAncestorId) {
+    setPrevAncestorId(ancestorId);
+    setNearbyOnly(ancestorId !== null);
+  }
 
   const nearbyFilterActive = !!location && nearbyOnly;
   const displayData = useMemo(() => {

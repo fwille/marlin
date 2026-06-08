@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect } from 'react';
+import { useRef, useCallback, useEffect, useState } from 'react';
 import { View, StyleSheet } from 'react-native';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { reverseGeocode } from '@/lib/reverseGeocode';
@@ -72,9 +72,11 @@ ${LEAFLET_HEAD}
 
 export default function LocationPicker({ value, onChange }: Props) {
   const onChangeRef = useRef(onChange);
-  onChangeRef.current = onChange;
+  useEffect(() => {
+    onChangeRef.current = onChange;
+  });
 
-  const htmlRef = useRef(buildPickerHtml(value?.lat, value?.lng));
+  const [html] = useState(() => buildPickerHtml(value?.lat, value?.lng));
   const webViewRef = useRef<WebView>(null);
 
   // `value` often starts null and is seeded asynchronously (e.g. GPS resolves
@@ -87,7 +89,6 @@ export default function LocationPicker({ value, onChange }: Props) {
   // are true, whichever order they happen in — and only the first time, so we
   // don't fight the user's own taps/drags.
   const valueRef = useRef(value);
-  valueRef.current = value;
   const readyRef = useRef(false);
   const seededRef = useRef(!!value);
 
@@ -105,6 +106,7 @@ export default function LocationPicker({ value, onChange }: Props) {
   }, [seedIfReady]);
 
   useEffect(() => {
+    valueRef.current = value;
     seedIfReady();
   }, [value, seedIfReady]);
 
@@ -123,7 +125,7 @@ export default function LocationPicker({ value, onChange }: Props) {
       <WebView
         ref={webViewRef}
         style={styles.map}
-        source={{ html: htmlRef.current }}
+        source={{ html }}
         onMessage={handleMessage}
         onLoadEnd={handleLoadEnd}
         scrollEnabled={false}

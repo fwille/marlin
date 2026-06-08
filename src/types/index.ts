@@ -26,13 +26,13 @@ export interface INatTaxon {
   description?: string;
   conservation_status?: INatConservationStatus;
   threatened?: boolean;
-  ancestors?: Array<{
+  ancestors?: {
     id: number;
     rank: string;
     name: string;
     preferred_common_name?: string;
-  }>;
-  taxon_photos?: Array<{ photo: INatPhoto }>;
+  }[];
+  taxon_photos?: { photo: INatPhoto }[];
 }
 
 export type MonthlyHistogram = Record<string, number>; // keys "1"–"12"

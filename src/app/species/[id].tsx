@@ -14,7 +14,7 @@ import {
 import { ZoomableImage } from '@/components/ZoomableImage';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useLocalSearchParams, Stack, router } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import * as ImagePicker from 'expo-image-picker';
@@ -251,12 +251,15 @@ function AddSightingModal({
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
 
-  // Seed map at user location when modal opens
+  // Seed map at user location when the modal opens — `initialLocation` arrives
+  // asynchronously (GPS can resolve after the modal is already open), so this
+  // genuinely needs to react to it rather than be computed during render.
   useEffect(() => {
     if (visible && initialLocation && !coords) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCoords({ lat: initialLocation.lat, lng: initialLocation.lng });
     }
-  }, [visible, initialLocation]);
+  }, [visible, initialLocation, coords]);
 
   const handleLocationChange = (loc: PickedLocation) => {
     setCoords(loc);
