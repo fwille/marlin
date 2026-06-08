@@ -1,0 +1,1 @@
+Initial release. Identify nearby marine species via iNaturalist data, search and browse by classification, and build a personal life list with photos, notes, and pinned locations — all stored on your device, no account needed.
