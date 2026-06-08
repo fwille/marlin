@@ -48,3 +48,9 @@ example
 
 # Claude Code runtime state (session locks etc — machine/session-specific)
 .claude/*.lock
+
+# Claude Code skills — locally installed tooling, regenerated from skills-lock.json
+# (same reasoning as node_modules/: not part of the app, fetched on demand)
+.agents/
+.claude/skills/
+skills-lock.json
