@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LEAFLET_HEAD } from '@/lib/leafletAssets';
 
 interface Props {
   taxonId: number;
@@ -14,8 +15,7 @@ function buildMapHtml(taxonId: number, userLat?: number, userLng?: number): stri
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+${LEAFLET_HEAD}
 <style>*{margin:0;padding:0}html,body,#map{width:100%;height:100%}<\/style>
 </head>
 <body>

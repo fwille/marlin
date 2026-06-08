@@ -2,6 +2,7 @@ import { useRef, useCallback, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { reverseGeocode } from '@/lib/reverseGeocode';
+import { LEAFLET_HEAD } from '@/lib/leafletAssets';
 
 export interface PickedLocation {
   lat: number;
@@ -19,8 +20,7 @@ function buildPickerHtml(lat?: number, lng?: number): string {
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+${LEAFLET_HEAD}
 <style>
   *{margin:0;padding:0}html,body,#map{width:100%;height:100%}
   #hint{position:absolute;top:8px;left:50%;transform:translateX(-50%);

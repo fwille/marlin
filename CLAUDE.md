@@ -33,7 +33,7 @@ src/
       index.tsx               Nearby species (location-based)
       search.tsx              Global species search + ancestor-scoped browsing (tap a classification chip)
       lifelist.tsx            Personal life list with swipe-delete
-      settings.tsx            Theme, Auto Backup toggle, export/import, manual location override
+      settings.tsx            Theme, export/import, manual location override
       map.tsx / map.web.tsx   Hidden tab (href:null) — re-exports SightingsMap
     species/[id].tsx          Species detail + Add Sighting modal
     sighting/[id].tsx         Sighting detail — edit notes/location/photos, delete
@@ -56,6 +56,7 @@ src/
     photoStorage.ts           Resize + relocate sighting photos into document storage (see Key patterns)
     gpsLocation.ts(.android)      Current-position + permission primitives — iOS/web wrap expo-location, Android wraps ../../modules/native-location
     reverseGeocode.ts(.android)   Coordinates → place name — same iOS/web vs. Android split
+    leafletAssets.ts          Vendored Leaflet 1.9.4 (CSS+JS+marker icons as data URIs) inlined into map HTML — no runtime CDN fetch
   store/
     lifelist.ts               Zustand lifelist store (sightings, optimistic add)
     manualLocation.ts         Manual "as if I'm at…" location override, persisted via db settings
@@ -109,7 +110,7 @@ const mySightings = useMemo(() => sightings.filter(s => s.speciesId === taxonId)
 Only selectors returning primitives (`hasSeen` → `boolean`) are safe to use directly.
 
 ### Sighting photos must go through `lib/photoStorage`
-`expo-image-picker` saves into the cache directory — which Android Auto Backup excludes, and which the OS can clear at any time. `persistSightingPhoto` downscales each photo (long edge ≤1280px, JPEG q0.7) and moves it into the app's document storage so it (a) survives a backup/restore cycle and (b) doesn't blow Android's backup size quota. Always pair it with `deleteSightingPhoto` wherever a photo can be removed or replaced — including discarded Add Sighting drafts — so files don't linger as orphans. No-op on web (picker returns blob/data URIs that aren't persisted anyway).
+`expo-image-picker` saves into the cache directory, which the OS can clear at any time. `persistSightingPhoto` downscales each photo (long edge ≤1280px, JPEG q0.7) and moves it into the app's document storage so it stays around for the life of the sighting. Always pair it with `deleteSightingPhoto` wherever a photo can be removed or replaced — including discarded Add Sighting drafts — so files don't linger as orphans. No-op on web (picker returns blob/data URIs that aren't persisted anyway).
 
 ### SQLite on web
 expo-sqlite's sync API requires `SharedArrayBuffer`, which browsers block without `COOP/COEP` headers. The `.web.ts` stubs return empty arrays / temp IDs so the web build compiles and runs. Data is not persisted between web page loads.
@@ -157,3 +158,17 @@ npx expo run:android  # native Android dev client — required (native-location 
 ```
 
 Use `npx expo start --clear` to bust the Metro cache after adding `.web.ts` stubs or changing platform-specific files.
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in this repo's GitHub Issues (fwille/marlin); skills use the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-human, wontfix). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — CONTEXT.md + docs/adr/ at the repo root (neither exists yet; created lazily by /grill-with-docs). See `docs/agents/domain.md`.

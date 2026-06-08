@@ -51,7 +51,6 @@ To show you species information and maps, Marlin connects to the external servic
 | Wikipedia API | Species summary text on species detail pages | Species name, IP address |
 | IUCN Red List API (optional feature) | Conservation status badge | Species name, IP address |
 | OpenStreetMap tile servers | Map tiles shown on distribution and sighting maps | IP address |
-| unpkg.com (a content delivery network) | Loads the Leaflet mapping library that draws the maps | IP address |
 
 These are independent services with their own privacy policies, and the developer has no control over how they process requests sent to them. Most of them are operated from outside the European Economic Area, for example the United States and United Kingdom, so using these features can involve transferring your IP address there. No personal data beyond what's listed above, and what's inherent to any internet connection, is sent.
 

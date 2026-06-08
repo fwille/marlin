@@ -16,6 +16,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
 import { getTaxon } from '@/api/inaturalist';
+import { LEAFLET_HEAD } from '@/lib/leafletAssets';
 
 const OCEAN_BLUE = '#006994';
 
@@ -51,8 +52,7 @@ function buildMapHtml(points: Point[]): string {
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"><\/script>
+${LEAFLET_HEAD}
 <style>
   *{margin:0;padding:0}html,body,#map{width:100%;height:100%}
   .pop-name{font:bold 14px sans-serif;margin-bottom:3px}
