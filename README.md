@@ -83,4 +83,4 @@ See [CLAUDE.md](./CLAUDE.md) for the full annotated layout.
 
 ## License
 
-MIT — see [LICENSE](./LICENSE).
+MIT — see [LICENSE](./LICENSE). Bundled third-party code (Leaflet) is under its own license — see [NOTICE](./NOTICE).
