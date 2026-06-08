@@ -15,8 +15,8 @@ function getPhotosDir(): Directory {
 /**
  * Downscales a freshly picked photo and moves it into the app's persistent
  * document storage. expo-image-picker saves into the cache directory, which
- * Android Auto Backup excludes — relocating (and shrinking) the file here is
- * what lets sighting photos survive a device restore within the backup quota.
+ * the OS can clear at any time — relocating (and shrinking) the file here is
+ * what keeps sighting photos around for the life of the sighting.
  * No-op on web, where the picker returns blob/data URIs and nothing persists anyway.
  */
 export async function persistSightingPhoto(sourceUri: string): Promise<string> {

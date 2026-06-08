@@ -1,18 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Linking,
-  Alert, ScrollView, Switch, Platform, Share, Modal, TextInput, KeyboardAvoidingView,
+  Alert, ScrollView, Share, Modal, TextInput, KeyboardAvoidingView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useThemeStore, ThemePreference } from '@/store/theme';
 import { useLifelist } from '@/store/lifelist';
-import { dbGetAllSightings, dbImportSightings, dbGetSetting, dbSetSetting } from '@/db';
+import { dbGetAllSightings, dbImportSightings } from '@/db';
 import { Sighting } from '@/types';
 
 const OCEAN_BLUE = '#006994';
-const BACKUP_SETTING = 'backup_allowed';
 
 interface BackupFile {
   version: 1;
@@ -33,34 +32,9 @@ export default function SettingsScreen() {
   const setTheme = useThemeStore(s => s.setTheme);
   const loadLifelist = useLifelist(s => s.load);
 
-  const [backupEnabled, setBackupEnabled] = useState(true);
   const [busy, setBusy] = useState(false);
   const [importModalVisible, setImportModalVisible] = useState(false);
   const [importText, setImportText] = useState('');
-
-  useEffect(() => {
-    setBackupEnabled(dbGetSetting(BACKUP_SETTING) !== 'false');
-  }, []);
-
-  const toggleBackup = (value: boolean) => {
-    if (!value) {
-      Alert.alert(
-        'Disable Auto Backup?',
-        'Your life list will no longer be backed up automatically by Android. Use Export to save your data manually.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          {
-            text: 'Disable',
-            style: 'destructive',
-            onPress: () => { dbSetSetting(BACKUP_SETTING, 'false'); setBackupEnabled(false); },
-          },
-        ]
-      );
-    } else {
-      dbSetSetting(BACKUP_SETTING, 'true');
-      setBackupEnabled(true);
-    }
-  };
 
   const handleExport = async () => {
     if (busy) return;
@@ -187,49 +161,21 @@ export default function SettingsScreen() {
             </View>
             <Ionicons name="arrow-down-circle-outline" size={18} color={isDark ? '#555' : '#bbb'} />
           </TouchableOpacity>
-
-          {Platform.OS === 'android' && (
-            <View style={styles.row}>
-              <View style={[styles.iconWrap, { backgroundColor: '#e8f0fb' }]}>
-                <Ionicons name="cloud-outline" size={20} color="#1a73e8" />
-              </View>
-              <View style={styles.rowText}>
-                <Text style={[styles.rowLabel, isDark && styles.textDark]}>Android Auto Backup</Text>
-                <Text style={styles.rowSub}>
-                  {backupEnabled
-                    ? 'Life list backed up to your Google account'
-                    : 'Auto backup disabled — use Export to save manually'}
-                </Text>
-              </View>
-              <Switch
-                value={backupEnabled}
-                onValueChange={toggleBackup}
-                trackColor={{ true: OCEAN_BLUE, false: undefined }}
-                thumbColor="#fff"
-              />
-            </View>
-          )}
         </View>
 
-        {/* Backup coverage info */}
+        {/* Export coverage info */}
         <View style={[styles.infoBox, isDark && styles.infoBoxDark]}>
-          <Text style={[styles.infoTitle, isDark && styles.infoTitleDark]}>What is backed up?</Text>
+          <Text style={[styles.infoTitle, isDark && styles.infoTitleDark]}>What does export cover?</Text>
           <View style={styles.infoRow}>
             <Ionicons name="checkmark-circle" size={15} color="#2e7d32" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Sighting records — species, date, location, notes. Covered by both Android Auto Backup and manual export/import.
+              Sighting records — species, date, location, notes. Included in the exported file.
             </Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="alert-circle" size={15} color="#e65100" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Your own sighting photos — resized and included in Android Auto Backup automatically, but not in manual export/import: that's plain text and can't carry image files.
-            </Text>
-          </View>
-          <View style={styles.infoRow}>
-            <Ionicons name="information-circle" size={15} color="#1a73e8" style={styles.infoIcon} />
-            <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Heads up: a very large photo library can exceed Android's backup size limit. If a photo ever turns up missing after a restore, open the sighting and tap it to re-attach it.
+              Your own sighting photos — not included, since the export is plain text and can't carry image files. Back up your photo gallery separately if you want to keep them.
             </Text>
           </View>
         </View>

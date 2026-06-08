@@ -22,7 +22,7 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "allowBackup": true,
+      "allowBackup": false,
       "predictiveBackGestureEnabled": false,
       "package": "com.marlinid.marlin"
     },

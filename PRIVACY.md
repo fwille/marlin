@@ -35,7 +35,7 @@ Photos you attach are resized and copied into the app's private storage, on your
 Sightings, notes, photos, and locations you log are stored in a local database on your device. This data:
 
 - is never transmitted to the developer or to any third party,
-- may be included in Android Auto Backup, a standard Android OS feature that copies app data to your own Google account (you can turn this off in Settings),
+- is excluded from Android Auto Backup (the app opts out of this OS feature, so your data is never copied to a Google account by it),
 - can be manually exported to, or imported from, a file of your choosing, entirely under your control, and
 - is kept only for as long as you keep it in the app; deleting a sighting, clearing the app's storage, or uninstalling the app removes it from your device immediately and permanently.
 

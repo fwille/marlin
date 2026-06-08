@@ -12,9 +12,9 @@ Android-first (iOS to follow), built with Expo + React Native.
 - **Life List** — your personal record of every species you've logged, with swipe-to-delete
 - **My Map** — every sighting you've logged, pinned on a map and color-coded by taxonomic group (fish, sharks & rays, mollusks, jellyfish, marine mammals, …)
 - **Sightings** — attach notes, photos, and a tap-to-place location to each logged sighting; edit or delete any time
-- **Settings** — light/dark/system theme, Android Auto Backup controls, manual export/import of your life list, and a manual location override (handy for logging a dive trip after the fact)
+- **Settings** — light/dark/system theme, manual export/import of your life list, and a manual location override (handy for logging a dive trip after the fact)
 
-No account or sign-up required — everything lives on your device, with optional Android Auto Backup and manual export/import for safekeeping.
+No account or sign-up required — everything lives on your device, with manual export/import for safekeeping.
 
 ## Tech stack
 
