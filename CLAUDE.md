@@ -165,9 +165,7 @@ Use `npx expo start --clear` to bust the Metro cache after adding `.web.ts` stub
 ## CI and tooling
 
 ### GitHub Actions
-Two workflows in `.github/workflows/`:
-- **`ci.yml`** — runs on every push/PR to `main`: `npm audit --audit-level=high` → `expo lint` → `tsc --noEmit` → `jest --coverage`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
-- **`eas-build.yml`** — triggers on `v*` tags; builds a production Android APK via EAS. Requires an `EXPO_TOKEN` secret (GitHub → Settings → Secrets → Actions).
+One workflow in `.github/workflows/ci.yml` — runs on every push/PR to `main`: `npm audit --audit-level=high` → `expo lint` → `tsc --noEmit` → `jest --coverage`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
 
 ### Pre-commit hooks
 `husky` + `lint-staged`: runs `eslint --fix` on staged `.ts`/`.tsx` files before each commit. Installed automatically via the `prepare` npm script on `npm install`. Skipped in CI automatically by husky.
