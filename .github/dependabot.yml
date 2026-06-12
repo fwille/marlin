@@ -9,6 +9,11 @@ updates:
         patterns: ["expo", "expo-*", "@expo/*"]
       react-native:
         patterns: ["react-native", "react-native-*", "@react-native/*"]
+    ignore:
+      - dependency-name: "expo"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-native"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
