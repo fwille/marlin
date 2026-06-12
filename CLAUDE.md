@@ -4,7 +4,7 @@
 
 ## What this app is
 
-Marlin is a marine species identification and life-list app for fish and marine life. Android-first, iOS later. No camera/photo-ID feature yet.
+Marlin is a marine species identification and life-list app for fish and marine life. No camera/photo-ID feature yet.
 
 ## Tech stack
 
