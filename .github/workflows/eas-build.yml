@@ -18,7 +18,7 @@ jobs:
 
       - run: npm ci
 
-      - uses: expo/expo-github-action@v8
+      - uses: expo/expo-github-action@v9
         with:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
