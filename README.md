@@ -84,6 +84,8 @@ See [CLAUDE.md](./CLAUDE.md) for the full annotated layout.
 | `npm run android` / `npm run ios` | Build and run a native dev client |
 | `npm run web` | Run the web build |
 | `npm run lint` | Lint with `expo lint` |
+| `npm run typecheck` | Type-check with `tsc --noEmit` |
+| `npm test` | Run unit tests with Jest |
 | `npm run reset-project` | Move the starter code aside and start from a blank `app/` directory |
 
 ## License

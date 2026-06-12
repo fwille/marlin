@@ -27,7 +27,7 @@ Marlin is a marine species identification and life-list app for fish and marine 
 src/
   api/inaturalist.ts          iNaturalist API client
   app/
-    _layout.tsx               Root layout — QueryClientProvider, SafeAreaProvider, AppInit (loads DB)
+    _layout.tsx               Root layout — ErrorBoundary, QueryClientProvider, SafeAreaProvider, AppInit (loads DB)
     (tabs)/
       _layout.tsx             Tabs: Nearby, Search, Life List, Settings — plus a hidden "My Map"
       index.tsx               Nearby species (location-based)
@@ -42,6 +42,7 @@ src/
     DistributionMap.tsx(.web)   Species distribution — Leaflet + iNat observation tiles
     LocationPicker.tsx(.web)    Tap-to-place map for picking a sighting's location
     ZoomableImage.tsx           Pinch-to-zoom lightbox for sighting photos
+    error-boundary.tsx              Top-level React error boundary (wraps root layout)
     themed-text.tsx, themed-view.tsx, hint-row.tsx,
     web-badge.tsx, animated-icon.tsx(.web)   Small shared UI primitives
   db/
@@ -62,6 +63,8 @@ src/
     manualLocation.ts         Manual "as if I'm at…" location override, persisted via db settings
     theme.ts                  Theme preference (system/light/dark), persisted via db settings
   types/index.ts              Shared types: INatTaxon, Sighting, NearbySpecies, …
+  global.d.ts                 `/// <reference types="expo/types" />` — provides CSS module types on CI
+                              where expo-env.d.ts is gitignored
 
 modules/
   native-location/            Local Expo module (Android-only) — GMS-free LocationManager/Geocoder backend, see Key patterns
@@ -158,6 +161,22 @@ npx expo run:android  # native Android dev client — required (native-location 
 ```
 
 Use `npx expo start --clear` to bust the Metro cache after adding `.web.ts` stubs or changing platform-specific files.
+
+## CI and tooling
+
+### GitHub Actions
+Two workflows in `.github/workflows/`:
+- **`ci.yml`** — runs on every push/PR to `main`: `npm audit --audit-level=high` → `expo lint` → `tsc --noEmit` → `jest --coverage`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
+- **`eas-build.yml`** — triggers on `v*` tags; builds a production Android APK via EAS. Requires an `EXPO_TOKEN` secret (GitHub → Settings → Secrets → Actions).
+
+### Pre-commit hooks
+`husky` + `lint-staged`: runs `eslint --fix` on staged `.ts`/`.tsx` files before each commit. Installed automatically via the `prepare` npm script on `npm install`. Skipped in CI automatically by husky.
+
+### Dependabot
+Weekly PRs for npm and GitHub Actions dependencies. `expo` and `react-native` major bumps are ignored — upgrade those manually following the [Expo upgrade guide](https://docs.expo.dev/workflow/upgrading-expo-sdk-walkthrough/).
+
+### Tests
+`jest-expo` preset, tests under `src/**/__tests__/`. Run with `npm test`. Mocking pattern: `jest.mock('@/db')` for database, `useLifelist.getState()` / `useLifelist.setState()` for Zustand stores. For module-level constants that read env vars at load time (e.g. `IUCN_TOKEN`), use `jest.resetModules()` + `require()` in `beforeAll` after setting the env var.
 
 ## Agent skills
 
