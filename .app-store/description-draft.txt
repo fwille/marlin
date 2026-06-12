@@ -9,7 +9,7 @@ FULL DESCRIPTION (max 4000 chars):
 
 Marlin: Marine Species ID & Life List
 
-Ever spotted a fish, ray, or jellyfish while diving, snorkeling, or beachcombing and wondered what it was? Marlin helps you identify marine life on the spot, learn more about it, and build your own personal life list of every species you encounter.
+Ever spotted a fish, ray, or jellyfish while diving or snorkeling and wondered what it was? Marlin helps you identify marine life on the spot, learn more about it, and build your own personal life list of every species you encounter.
 
 Spot it, look it up, and add it to your life list — built for everything that lives in the ocean.
 
