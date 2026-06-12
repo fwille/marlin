@@ -8,6 +8,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useLifelist } from '@/store/lifelist';
 import { useManualLocation } from '@/store/manualLocation';
 import { useThemeStore } from '@/store/theme';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <AppInit />
@@ -48,6 +50,7 @@ export default function RootLayout() {
           </Stack>
         </SafeAreaProvider>
       </QueryClientProvider>
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }
