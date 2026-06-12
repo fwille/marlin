@@ -35,8 +35,10 @@ Builds:
       - sdkmanager 'cmake;3.22.1'
       - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' package.json
       - npx expo prebuild --clean --no-install --platform android
-      - printf 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m\norg.gradle.workers.max=2\nexpo.inlineModules.watchedDirectories=[]\n'
+      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m'
         >> android/gradle.properties
+      - echo 'org.gradle.workers.max=2' >> android/gradle.properties
+      - echo 'expo.inlineModules.watchedDirectories=[]' >> android/gradle.properties
       - sed -i -e '/signingConfig /d' android/app/build.gradle
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
         false } }' >> android/app/build.gradle
