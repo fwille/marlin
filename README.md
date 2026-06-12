@@ -2,6 +2,9 @@
 
 ![Marlin — Marine Species ID & Life List](metadata/en-US/images/featureGraphic.png)
 
+[![CI](https://github.com/fwille/marlin/actions/workflows/ci.yml/badge.svg)](https://github.com/fwille/marlin/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+
 Marlin is a marine species identification and life-list app for fish and marine life. Spot something while diving or snorkeling, look it up, and log it to your personal life list with a photo, notes, and a pinned location.
 
 Built with Expo + React Native.
