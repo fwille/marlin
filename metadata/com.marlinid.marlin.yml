@@ -35,6 +35,8 @@ Builds:
       - sdkmanager 'cmake;3.22.1'
       - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' package.json
       - npx expo prebuild --platform android
+      - printf 'org.gradle.jvmargs=-Xmx2g -XX:MaxMetaspaceSize=512m\norg.gradle.workers.max=2\n'
+        >> android/gradle.properties
       - sed -i -e '/signingConfig /d' android/app/build.gradle
       - sed -i '/jvmToolchain/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
       - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
