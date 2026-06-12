@@ -45,7 +45,6 @@ Builds:
         node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
-      - node_modules/expo-modules-autolinking/scripts/android/autolinking_implementation.gradle
       - node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
       - node_modules/@react-native-masked-view/masked-view/android/build.gradle
       - node_modules/expo-dev-launcher/android/build.gradle
