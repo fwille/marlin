@@ -50,7 +50,7 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    build: cd android && ./gradlew assembleRelease
+    build: gradle -p android :app:assembleRelease
     ndk: 27.1.12297006
 
 AutoUpdateMode: None
