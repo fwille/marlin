@@ -35,7 +35,7 @@ Builds:
       - sdkmanager 'cmake;3.22.1'
       - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' package.json
       - npx expo prebuild --clean --no-install --platform android
-      - printf 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m\norg.gradle.workers.max=2\n'
+      - printf 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m\norg.gradle.workers.max=2\nexpo.inlineModules.watchedDirectories=[]\n'
         >> android/gradle.properties
       - sed -i -e '/signingConfig /d' android/app/build.gradle
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
@@ -55,7 +55,7 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    build: gradle -p android --info :app:assembleRelease
+    build: gradle -p android :app:assembleRelease
     ndk: 27.1.12297006
 
 AutoUpdateMode: None
