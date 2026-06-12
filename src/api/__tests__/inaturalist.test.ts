@@ -167,12 +167,12 @@ describe('getIucnStatus without a token', () => {
 });
 
 describe('getIucnStatus IUCN legacy code normalisation', () => {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mod: any;
+  let mod: any; // re-imported after resetModules to pick up EXPO_PUBLIC_IUCN_TOKEN
 
   beforeAll(() => {
     process.env.EXPO_PUBLIC_IUCN_TOKEN = 'test-token';
     jest.resetModules();
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     mod = require('../inaturalist');
   });
 

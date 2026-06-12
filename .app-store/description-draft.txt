@@ -34,4 +34,4 @@ PRIVACY BY DESIGN
 
 Marlin doesn't ask you to create an account. There is no tracking, no analytics, and no advertising. Your life list, photos, and notes stay on your device, under your control, with optional backup and manual export whenever you want them.
 
-Whether you're a diver, snorkeler, beachcomber, or simply curious about what's living in the water near you, Marlin turns every encounter into something you can identify, learn from, and remember.
+Whether you're a diver, snorkeler, or simply curious about what's living in the water near you, Marlin turns every encounter into something you can identify, learn from, and remember.
