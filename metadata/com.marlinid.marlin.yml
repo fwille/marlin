@@ -8,11 +8,11 @@ IssueTracker: https://github.com/fwille/marlin/issues
 
 AutoName: Marlin
 Description: |-
-    Marlin is a marine species identification and life-list app for fish and
-    marine life. Spot something while diving or snorkeling, look it up against
-    iNaturalist's observation data, and log it to your personal life list with a
-    photo, notes, and a pinned location. No account, no tracking, no ads —
-    everything stays on your device, with manual export/import for backup.
+  Marlin is a marine species identification and life-list app for fish and
+  marine life. Spot something while diving or snorkeling, look it up against
+  iNaturalist's observation data, and log it to your personal life list with a
+  photo, notes, and a pinned location. No account, no tracking, no ads —
+  everything stays on your device, with manual export/import for backup.
 
 RepoType: git
 Repo: https://github.com/fwille/marlin.git
@@ -21,21 +21,16 @@ Builds:
   - versionName: 1.0.1
     versionCode: 2
     commit: 4ff5e137a93bdf80aa942d312c745ba1fceae19c
-    output: android/app/build/outputs/apk/release/app-release-unsigned.apk
     sudo:
       - apt-get update
       - apt-get install -y curl xz-utils
       - curl -Lo /tmp/node.tar.xz https://nodejs.org/dist/v22.22.3/node-v22.22.3-linux-x64.tar.xz
-      - echo "2e5d13569282d016861fae7c8f935e741693c269101a5bebcf761a5376d1f99f  /tmp/node.tar.xz" | sha256sum -c -
+      - echo "2e5d13569282d016861fae7c8f935e741693c269101a5bebcf761a5376d1f99f  /tmp/node.tar.xz"
+        | sha256sum -c -
       - tar xJf /tmp/node.tar.xz --strip-components=1 -C /usr/local
       - rm /tmp/node.tar.xz
-    init:
-      - npm ci
-    # The build image only ships JDK 21 (Debian trixie dropped JDK 17), but
-    # @react-native/gradle-plugin hardcodes a JDK 17 toolchain to compile
-    # itself — retarget it to 21 with sed before Gradle touches it. Also
-    # strip `signingConfig` so the release build comes out unsigned, ready
-    # for F-Droid to sign with its own repo key.
+    init: npm ci
+    output: android/app/build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
       - sdkmanager 'cmake;3.22.1'
       - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' package.json
@@ -55,12 +50,10 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    build:
-      - cd android/app
-      - gradle assembleRelease
+    build: cd android && ./gradlew assembleRelease
     ndk: 27.1.12297006
 
 AutoUpdateMode: None
-UpdateCheckMode: Tags
+UpdateCheckMode: None
 CurrentVersion: 1.0.1
 CurrentVersionCode: 2
