@@ -41,9 +41,12 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.4",
     "eslint-config-expo": "~56.0.4",
+    "jest": "^29.7.0",
+    "jest-expo": "~56.0.5",
     "sharp": "^0.34.5",
     "typescript": "~6.0.3"
   },
@@ -54,13 +57,16 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "private": true,
   "expo": {
     "autolinking": {
       "android": {
-        "exclude": ["expo-location"]
+        "exclude": [
+          "expo-location"
+        ]
       }
     }
   }
