@@ -187,14 +187,17 @@ The app is distributed on F-Droid under package ID `com.marlinid.marlin`. The re
 
 The `android/` directory is committed (bare workflow) so F-Droid's `checkupdates` step can read `android/app/build.gradle` for `versionCode`/`versionName` at the tag. F-Droid can't read from `app.json` (Expo-specific). The recipe still runs `expo prebuild --clean` during the build for reproducibility — it overwrites the committed files.
 
+The recipe declares `AntiFeatures: [TetheredNet]` because the discovery features (Nearby, Search, Species detail) depend entirely on iNaturalist's API, which cannot easily be self-hosted.
+
 Key recipe constraints:
 - **Node.js**: downloaded from nodejs.org in the `sudo:` block with SHA-256 verification — F-Droid's build server has no Node.
 - **`expo prebuild`**: run in `prebuild:` with `--clean --no-install --platform android`; generates the `android/` directory.
 - **`buildFromSource`**: injected via `sed` into `package.json` so all native modules compile from source rather than using prebuilt binaries.
 - **`expo.inlineModules.watchedDirectories=[]`**: written to `android/gradle.properties` in prebuild — without it, `ExpoAutolinkingPlugin` passes an empty argument to `--watched-directories-serialized` and `JSON.parse` throws.
 - **`lint { checkReleaseBuilds false }`**: appended to `android/app/build.gradle` — prevents `:lintVitalRelease` from triggering `lintVitalAnalyzeRelease` on every submodule, which exhausts Metaspace on the build server.
+- **ABI filter `arm64-v8a` + `armeabi-v7a`**: appended to `android/app/build.gradle` — compiling all four ABIs (including x86) from source exhausts memory on the build server and hits the 1-hour runner timeout.
 - **`scandelete: node_modules`**: removes all of `node_modules` before the binary scan; `scanignore` entries must therefore point to files that exist after the build (validated by F-Droid) but are acceptable prebuilts.
-- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. Long shell commands wrap onto continuation lines; avoid `printf` with `\n` escapes (wrapping breaks inside the string) and use separate `echo` calls instead.
+- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. Long shell commands wrap onto continuation lines; avoid `printf` with `\n` escapes (wrapping breaks inside the string) and use separate `echo` calls instead. The `fdroid-sync` GHA runs `rewritemeta` automatically on each tag push. Recipe fixes pushed **between** releases must be manually pushed to fdroiddata via SSH: `git clone -b com.marlinid.marlin git@gitlab.com:fiwille/fdroiddata.git`, apply the change, commit, and push.
 
 ## Running the project
 
