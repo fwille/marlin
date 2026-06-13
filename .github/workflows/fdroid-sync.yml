@@ -21,7 +21,7 @@ jobs:
         env:
           GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
         run: |
-          git clone --depth 1 \
+          git clone --depth 1 -b com.marlinid.marlin \
             "https://oauth2:${GITLAB_TOKEN}@gitlab.com/fiwille/fdroiddata.git" \
             /tmp/fdroiddata
           cp metadata/com.marlinid.marlin.yml /tmp/fdroiddata/metadata/
