@@ -43,7 +43,7 @@ function groupFor(iconicTaxonName?: string): { label: string; color: string } {
 interface Point {
   lat: number; lng: number;
   name: string; date: string; locationName: string;
-  speciesId: number; photoUri: string; imageUrl: string;
+  sightingId: number; speciesId: number; photoUri: string; imageUrl: string;
   color: string;
 }
 
@@ -77,7 +77,7 @@ ${LEAFLET_HEAD}
   pts.forEach(function(p){
     var img=(p.photoUri||p.imageUrl)?'<img class="pop-img" src="'+(p.photoUri||p.imageUrl)+'">':'';
     var loc=p.locationName?'<div class="pop-sub">'+p.locationName+'<\/div>':'';
-    var html='<div style="min-width:150px">'+img+'<div class="pop-name">'+p.name+'<\/div><div class="pop-sub">'+p.date+'<\/div>'+loc+'<div class="pop-link" onclick="nav('+p.speciesId+')">View species →<\/div><\/div>';
+    var html='<div style="min-width:150px">'+img+'<div class="pop-name">'+p.name+'<\/div><div class="pop-sub">'+p.date+'<\/div>'+loc+'<div class="pop-link" onclick="navSighting('+p.sightingId+')">View sighting →<\/div><div class="pop-link" style="color:#888" onclick="nav('+p.speciesId+')">View species →<\/div><\/div>';
     var m=L.circleMarker([p.lat,p.lng],{radius:8,weight:2,color:'#fff',fillColor:p.color,fillOpacity:0.9}).addTo(map).bindPopup(html);
     m._speciesName=p.name.toLowerCase();
     allMarkers.push(m);
@@ -94,6 +94,7 @@ ${LEAFLET_HEAD}
   window.flyTo=function(lat,lng){map.flyTo([lat,lng],12);};
 
   function nav(id){window.ReactNativeWebView.postMessage(JSON.stringify({type:'marlin_nav',id:id}));}
+  function navSighting(id){window.ReactNativeWebView.postMessage(JSON.stringify({type:'marlin_nav_sighting',id:id}));}
 <\/script>
 </body></html>`;
 }
@@ -141,6 +142,7 @@ export default function SightingsMap() {
           name: s.commonName ?? s.scientificName,
           date: s.date,
           locationName: s.locationName ?? '',
+          sightingId: s.id,
           speciesId: s.speciesId,
           photoUri: s.photoUris?.[0] ?? '',
           imageUrl: s.imageUrl ?? '',
@@ -195,6 +197,7 @@ export default function SightingsMap() {
     try {
       const d = JSON.parse(event.nativeEvent.data);
       if (d?.type === 'marlin_nav') router.push(`/species/${d.id}`);
+      if (d?.type === 'marlin_nav_sighting') router.push(`/sighting/${d.id}`);
     } catch {}
   }, []);
 
