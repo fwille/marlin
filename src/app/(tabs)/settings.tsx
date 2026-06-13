@@ -169,13 +169,13 @@ export default function SettingsScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="checkmark-circle" size={15} color="#2e7d32" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Sighting records — species, date, location, notes. Included in the exported file.
+              Sighting records — species, date, location, notes.
             </Text>
           </View>
           <View style={styles.infoRow}>
             <Ionicons name="alert-circle" size={15} color="#e65100" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Photos are not included — the export is plain text and cannot carry image files. After restoring a backup your sighting records come back, but photos will be missing and need to be re-attached to each sighting manually.
+              Photos are not included. After importing a backup, re-attach photos to each sighting manually.
             </Text>
           </View>
         </View>
