@@ -46,6 +46,7 @@ Builds:
   - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle = false
     } }' >> android/app/build.gradle
   - echo 'android { lint { checkReleaseBuilds false } }' >> android/app/build.gradle
+  - echo 'android { defaultConfig { ndk { abiFilters "arm64-v8a", "armeabi-v7a" } } }' >> android/app/build.gradle
   - sed -i '/jvmToolchain/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
   - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
     node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
