@@ -1,0 +1,1 @@
+Tap any photo in the recent nearby sightings section to open a full-screen lightbox — swipe left or right to browse through all photos. Tap a pin on the My Map screen to jump straight to that sighting's detail page. Fixed a broken map marker icon in the location picker.

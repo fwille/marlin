@@ -1,0 +1,1 @@
+Maps now load Leaflet from bundled assets instead of the internet, so they work fully offline and make no third-party network requests. Auto Backup is disabled to avoid backing up the local database to Google servers.
