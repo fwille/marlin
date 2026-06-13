@@ -3,6 +3,7 @@
 ![Marlin — Marine Species ID & Life List](metadata/en-US/images/featureGraphic.png)
 
 [![CI](https://github.com/fwille/marlin/actions/workflows/ci.yml/badge.svg)](https://github.com/fwille/marlin/actions/workflows/ci.yml)
+[![F-Droid](https://img.shields.io/f-droid/v/com.marlinid.marlin)](https://f-droid.org/packages/com.marlinid.marlin/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
 
 Marlin is a marine species identification and life-list app for fish and marine life. Spot something while diving or snorkeling, look it up, and log it to your personal life list with a photo, notes, and a pinned location.
@@ -13,9 +14,9 @@ Built with Expo + React Native.
 
 - **Nearby** — species commonly recorded near your current (or a manually chosen) location, powered by iNaturalist observation data
 - **Search** — look up any marine species by name, or browse by classification (tap a chip like "Family: Requiem sharks" to explore relatives), optionally narrowed to species seen near you
-- **Species detail** — photos, range map, seasonality chart, Wikipedia summary, IUCN Red List conservation status, and recent sightings from the iNaturalist community
+- **Species detail** — photos, range map, seasonality chart, Wikipedia summary, IUCN Red List conservation status, and recent sightings from the iNaturalist community (tap any photo to open a swipeable full-screen lightbox)
 - **Life List** — your personal record of every species you've logged, with swipe-to-delete
-- **My Map** — every sighting you've logged, pinned on a map and color-coded by taxonomic group (fish, sharks & rays, mollusks, jellyfish, marine mammals, …)
+- **My Map** — every sighting you've logged, pinned on a map and color-coded by taxonomic group (fish, sharks & rays, mollusks, jellyfish, marine mammals, …); tap a pin to jump to the sighting detail or species page
 - **Sightings** — attach notes, photos, and a tap-to-place location to each logged sighting; edit or delete any time
 - **Settings** — light/dark/system theme, manual export/import of your life list, and a manual location override (handy for logging a dive trip after the fact)
 

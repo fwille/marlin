@@ -38,10 +38,10 @@ src/
     species/[id].tsx          Species detail + Add Sighting modal
     sighting/[id].tsx         Sighting detail — edit notes/location/photos, delete
   components/
-    SightingsMap.tsx(.web)      My Sightings map — pins colored by taxonomic group, with legend
+    SightingsMap.tsx(.web)      My Sightings map — pins colored by taxonomic group, with legend; tapping a pin shows a popup with "View sighting" and "View species" links
     DistributionMap.tsx(.web)   Species distribution — Leaflet + iNat observation tiles
     LocationPicker.tsx(.web)    Tap-to-place map for picking a sighting's location
-    ZoomableImage.tsx           Pinch-to-zoom lightbox for sighting photos
+    ZoomableImage.tsx           Pinch-to-zoom + swipe-through lightbox; accepts onSwipeLeft/onSwipeRight props — fires when scale === 1 and horizontal pan exceeds 50 px
     error-boundary.tsx              Top-level React error boundary (wraps root layout)
     themed-text.tsx, themed-view.tsx, hint-row.tsx,
     web-badge.tsx, animated-icon.tsx(.web)   Small shared UI primitives
@@ -57,7 +57,7 @@ src/
     photoStorage.ts           Resize + relocate sighting photos into document storage (see Key patterns)
     gpsLocation.ts(.android)      Current-position + permission primitives — iOS/web wrap expo-location, Android wraps ../../modules/native-location
     reverseGeocode.ts(.android)   Coordinates → place name — same iOS/web vs. Android split
-    leafletAssets.ts          Vendored Leaflet 1.9.4 (CSS+JS+marker icons as data URIs) inlined into map HTML — no runtime CDN fetch
+    leafletAssets.ts          Vendored Leaflet 1.9.4 (CSS+JS+marker icons as data URIs) inlined into map HTML — no runtime CDN fetch. LEAFLET_ICON_OVERRIDE deletes L.Icon.Default.prototype._getIconUrl before mergeOptions so the parent implementation returns options.iconUrl directly without prepending imagePath (which would corrupt data URIs)
   store/
     lifelist.ts               Zustand lifelist store (sightings, optimistic add)
     manualLocation.ts         Manual "as if I'm at…" location override, persisted via db settings
@@ -68,6 +68,10 @@ src/
 
 modules/
   native-location/            Local Expo module (Android-only) — GMS-free LocationManager/Geocoder backend, see Key patterns
+
+metadata/
+  com.marlinid.marlin.yml     F-Droid recipe — build instructions, scanignore/scandelete, NDK version
+  en-US/                      Fastlane-format store listing (screenshots, feature graphic, description)
 ```
 
 ## Key patterns
@@ -151,6 +155,19 @@ Two other APIs are layered on top, both optional and gated so the app degrades g
 Maps use `react-native-webview` with Leaflet/OpenStreetMap (no Google Maps API key, and `react-native-webview` ships with Expo Go), so the map *components themselves* need no dev build.
 
 However, **Expo Go can't run the Android app at all anymore**: the custom `native-location` module (see Key patterns above) isn't present in Expo Go's binary, and `useLocation` — which the Nearby tab calls on mount — throws `Cannot find native module 'NativeLocation'` immediately. iOS/web are unaffected (they still use `expo-location`, which Expo Go bundles).
+
+## F-Droid distribution
+
+The app is distributed on F-Droid under package ID `com.marlinid.marlin`. The recipe lives in `metadata/com.marlinid.marlin.yml` (mirrored into the `fdroiddata` fork at `gitlab.com/fiwille/fdroiddata`).
+
+Key recipe constraints:
+- **Node.js**: downloaded from nodejs.org in the `sudo:` block with SHA-256 verification — F-Droid's build server has no Node.
+- **`expo prebuild`**: run in `prebuild:` with `--clean --no-install --platform android`; generates the `android/` directory.
+- **`buildFromSource`**: injected via `sed` into `package.json` so all native modules compile from source rather than using prebuilt binaries.
+- **`expo.inlineModules.watchedDirectories=[]`**: written to `android/gradle.properties` in prebuild — without it, `ExpoAutolinkingPlugin` passes an empty argument to `--watched-directories-serialized` and `JSON.parse` throws.
+- **`lint { checkReleaseBuilds false }`**: appended to `android/app/build.gradle` — prevents `:lintVitalRelease` from triggering `lintVitalAnalyzeRelease` on every submodule, which exhausts Metaspace on the build server.
+- **`scandelete: node_modules`**: removes all of `node_modules` before the binary scan; `scanignore` entries must therefore point to files that exist after the build (validated by F-Droid) but are acceptable prebuilts.
+- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. Long shell commands wrap onto continuation lines; avoid `printf` with `\n` escapes (wrapping breaks inside the string) and use separate `echo` calls instead.
 
 ## Running the project
 
