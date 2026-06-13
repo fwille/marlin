@@ -102,7 +102,7 @@ Builds:
   - node_modules
   build: gradle -p android :app:assembleRelease
   ndk: 27.1.12297006
-AutoUpdateMode: Version
-UpdateCheckMode: Tags v(.+)
+AutoUpdateMode: None
+UpdateCheckMode: None
 CurrentVersion: 1.1.0
 CurrentVersionCode: 3
