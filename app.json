@@ -50,7 +50,6 @@
         }
       ],
       "expo-sharing",
-      "expo-secure-store",
       "expo-image",
       "expo-font"
     ],
