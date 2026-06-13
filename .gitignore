@@ -47,7 +47,6 @@ example
 
 # generated native folders
 /ios
-/android
 
 # Claude Code runtime state (session locks etc — machine/session-specific)
 .claude/*.lock

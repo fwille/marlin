@@ -58,7 +58,11 @@ with open(path, 'w') as f:
     yaml.safe_dump(recipe, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 EOF
 
-git add app.json metadata/com.marlinid.marlin.yml
+# Keep android/app/build.gradle in sync so F-Droid checkupdates can read the version
+sed -i -E "s/versionCode [0-9]+/versionCode $NEW_CODE/" android/app/build.gradle
+sed -i -E "s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
+
+git add app.json metadata/com.marlinid.marlin.yml android/app/build.gradle
 git commit -m "chore: bump version to $VERSION"
 git tag "v$VERSION"
 git push origin main "v$VERSION"
