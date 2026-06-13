@@ -69,9 +69,18 @@ src/
 modules/
   native-location/            Local Expo module (Android-only) — GMS-free LocationManager/Geocoder backend, see Key patterns
 
+android/                      Committed bare-workflow output of `expo prebuild` — lets F-Droid checkupdates
+                              read versionCode/versionName from android/app/build.gradle without running
+                              prebuild first. The F-Droid recipe still runs `expo prebuild --clean` for
+                              reproducibility, which overwrites these files during the actual build.
+                              Update by running `npx expo prebuild --platform android` and committing.
+
 metadata/
   com.marlinid.marlin.yml     F-Droid recipe — build instructions, scanignore/scandelete, NDK version
-  en-US/                      Fastlane-format store listing (screenshots, feature graphic, description)
+  en-US/
+    changelogs/{versionCode}.txt  Per-version release notes displayed in F-Droid (plain text, ≤500 chars).
+                                  The release script auto-generates a draft via Claude CLI if missing.
+    full_description.txt / short_description.txt / images/   Store listing copy and screenshots
 ```
 
 ## Key patterns
@@ -162,13 +171,21 @@ However, **Expo Go can't run the Android app at all anymore**: the custom `nativ
 ./scripts/release.sh 1.2.0
 ```
 
-The script validates the version, bumps `app.json` (version + versionCode), appends a new build entry to `metadata/com.marlinid.marlin.yml` (copying the previous entry's build steps, using the tag name as `commit:`), commits both files, tags, and pushes. The `fdroid-sync` GHA workflow then handles the rest automatically — see CI and tooling below.
+The script:
+1. Checks for `metadata/en-US/changelogs/{newVersionCode}.txt`. If missing, calls `npx @anthropic-ai/claude-code -p` with the git log since the last tag to generate a draft, then pauses for review. Write the file yourself beforehand to skip generation.
+2. Bumps `app.json` (version + versionCode) and `android/app/build.gradle` (so F-Droid `checkupdates` can read the version without running `expo prebuild`).
+3. Appends a new build entry to `metadata/com.marlinid.marlin.yml` (copying the previous entry's build steps, using the tag name as `commit:`).
+4. Commits all three files, tags, and pushes to GitHub.
+
+The `fdroid-sync` GHA workflow then canonicalises the recipe with `fdroid rewritemeta` and pushes it to the fdroiddata GitLab fork automatically.
 
 When Node.js needs updating between releases, edit the `sudo:` block in the new recipe entry manually (version URL + SHA-256) before or after running the script.
 
 ## F-Droid distribution
 
 The app is distributed on F-Droid under package ID `com.marlinid.marlin`. The recipe lives in `metadata/com.marlinid.marlin.yml` (mirrored into the `fdroiddata` fork at `gitlab.com/fiwille/fdroiddata`).
+
+The `android/` directory is committed (bare workflow) so F-Droid's `checkupdates` step can read `android/app/build.gradle` for `versionCode`/`versionName` at the tag. F-Droid can't read from `app.json` (Expo-specific). The recipe still runs `expo prebuild --clean` during the build for reproducibility — it overwrites the committed files.
 
 Key recipe constraints:
 - **Node.js**: downloaded from nodejs.org in the `sudo:` block with SHA-256 verification — F-Droid's build server has no Node.

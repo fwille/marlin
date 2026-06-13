@@ -73,6 +73,9 @@ src/
   lib/          Photo storage, plus platform-split location/geocoding helpers (GMS-free on Android)
   store/        Zustand stores — life list, theme, manual location override
   types/        Shared TypeScript types
+
+android/        Committed bare-workflow Expo prebuild output (enables F-Droid version detection)
+metadata/       F-Droid recipe + Fastlane store listing (description, screenshots, changelogs)
 ```
 
 See [CLAUDE.md](./CLAUDE.md) for the full annotated layout.
