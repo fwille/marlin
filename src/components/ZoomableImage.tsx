@@ -2,6 +2,7 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withSpring,
+  runOnJS,
 } from 'react-native-reanimated';
 import {
   Gesture,
@@ -15,9 +16,11 @@ const SPRING = { damping: 20, stiffness: 200 };
 
 interface Props {
   uri: string;
+  onSwipeLeft?: () => void;
+  onSwipeRight?: () => void;
 }
 
-export function ZoomableImage({ uri }: Props) {
+export function ZoomableImage({ uri, onSwipeLeft, onSwipeRight }: Props) {
   const scale = useSharedValue(1);
   const savedScale = useSharedValue(1);
   const tx = useSharedValue(0);
@@ -57,8 +60,20 @@ export function ZoomableImage({ uri }: Props) {
       tx.value = savedTx.value + e.translationX;
       ty.value = savedTy.value + e.translationY;
     })
-    .onEnd(() => {
+    .onEnd((e) => {
       'worklet';
+      if (scale.value === 1 && Math.abs(e.translationX) > Math.abs(e.translationY)) {
+        if (e.translationX < -50 && onSwipeLeft) {
+          runOnJS(onSwipeLeft)();
+          reset();
+          return;
+        }
+        if (e.translationX > 50 && onSwipeRight) {
+          runOnJS(onSwipeRight)();
+          reset();
+          return;
+        }
+      }
       savedTx.value = tx.value;
       savedTy.value = ty.value;
     });

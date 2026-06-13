@@ -382,7 +382,7 @@ export default function SpeciesDetailScreen() {
   const insets = useSafeAreaInsets();
 
   const [modalVisible, setModalVisible] = useState(false);
-  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
+  const [lightbox, setLightbox] = useState<{ urls: string[]; index: number } | null>(null);
   const { location } = useLocation();
 
   const { data: taxon, isLoading, error } = useQuery({
@@ -407,6 +407,16 @@ export default function SpeciesDetailScreen() {
   });
   const recentObs = nearbyWasEmpty ? globalObs : nearbyObs;
   const obsIsGlobal = nearbyWasEmpty && !!globalObs?.length;
+
+  const obsPhotoUrls = useMemo(() => {
+    if (!recentObs) return [];
+    return recentObs.flatMap(obs => {
+      const photo = obs.photos?.[0] ?? obs.taxon?.default_photo;
+      const url = photo?.medium_url ?? photo?.url?.replace('square', 'medium');
+      const large = photo?.large_url ?? url;
+      return large ? [large] : [];
+    });
+  }, [recentObs]);
 
   const { data: histogram } = useQuery({
     queryKey: ['histogram', taxonId, location?.lat, location?.lng],
@@ -502,7 +512,7 @@ export default function SpeciesDetailScreen() {
         {/* Cover photo with back button overlay */}
         <View>
           {coverPhoto ? (
-            <TouchableOpacity activeOpacity={0.92} onPress={() => setLightboxUrl(coverPhoto)}>
+            <TouchableOpacity activeOpacity={0.92} onPress={() => setLightbox({ urls: [coverPhoto], index: 0 })}>
               <Image source={{ uri: coverPhoto }} style={styles.cover} resizeMode="cover" />
               {/* Expand hint */}
               <View style={styles.coverExpandHint} pointerEvents="none">
@@ -674,7 +684,11 @@ export default function SpeciesDetailScreen() {
                       key={obs.id}
                       style={[styles.obsCard, isDark && styles.obsCardDark]}
                       activeOpacity={url ? 0.8 : 1}
-                      onPress={() => largeUrl && setLightboxUrl(largeUrl)}>
+                      onPress={() => {
+                        if (!largeUrl) return;
+                        const idx = obsPhotoUrls.indexOf(largeUrl);
+                        setLightbox({ urls: obsPhotoUrls, index: idx >= 0 ? idx : 0 });
+                      }}>
                       {url ? (
                         <View>
                           <Image source={{ uri: url }} style={styles.obsImage} />
@@ -751,15 +765,29 @@ export default function SpeciesDetailScreen() {
 
       {/* Lightbox */}
       <Modal
-        visible={!!lightboxUrl}
+        visible={!!lightbox}
         transparent
         animationType="fade"
-        onRequestClose={() => setLightboxUrl(null)}>
+        onRequestClose={() => setLightbox(null)}>
         <View style={styles.lightboxBackdrop}>
-          {lightboxUrl && (
-            <ZoomableImage key={lightboxUrl} uri={lightboxUrl} />
+          {lightbox && (
+            <ZoomableImage
+              key={lightbox.urls[lightbox.index]}
+              uri={lightbox.urls[lightbox.index]}
+              onSwipeLeft={lightbox.index < lightbox.urls.length - 1
+                ? () => setLightbox(prev => prev ? { ...prev, index: prev.index + 1 } : null)
+                : undefined}
+              onSwipeRight={lightbox.index > 0
+                ? () => setLightbox(prev => prev ? { ...prev, index: prev.index - 1 } : null)
+                : undefined}
+            />
           )}
-          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightboxUrl(null)}>
+          {lightbox && lightbox.urls.length > 1 && (
+            <Text style={styles.lightboxCounter}>
+              {lightbox.index + 1} / {lightbox.urls.length}
+            </Text>
+          )}
+          <TouchableOpacity style={styles.lightboxClose} onPress={() => setLightbox(null)}>
             <Ionicons name="close-circle" size={32} color="#fff" />
           </TouchableOpacity>
         </View>
@@ -882,6 +910,7 @@ const styles = StyleSheet.create({
   },
   lightboxImage: { width: '100%', height: '80%' },
   lightboxClose: { position: 'absolute', top: 48, right: 20 },
+  lightboxCounter: { position: 'absolute', bottom: 40, alignSelf: 'center', color: '#fff', fontSize: 14, opacity: 0.8 },
   mySighting: {
     flexDirection: 'row',
     gap: 10,
