@@ -7,6 +7,8 @@ SourceCode: https://github.com/fwille/marlin
 IssueTracker: https://github.com/fwille/marlin/issues
 Changelog: https://github.com/fwille/marlin/releases
 AutoName: Marlin
+AntiFeatures:
+- TetheredNet
 Description: 'Marlin is a marine species identification and life-list app for fish
   and
 
