@@ -51,7 +51,8 @@
       ],
       "expo-sharing",
       "expo-secure-store",
-      "expo-image"
+      "expo-image",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true,
