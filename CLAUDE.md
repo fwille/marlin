@@ -156,6 +156,16 @@ Maps use `react-native-webview` with Leaflet/OpenStreetMap (no Google Maps API k
 
 However, **Expo Go can't run the Android app at all anymore**: the custom `native-location` module (see Key patterns above) isn't present in Expo Go's binary, and `useLocation` — which the Nearby tab calls on mount — throws `Cannot find native module 'NativeLocation'` immediately. iOS/web are unaffected (they still use `expo-location`, which Expo Go bundles).
 
+## Releasing
+
+```bash
+./scripts/release.sh 1.2.0
+```
+
+The script validates the version, bumps `app.json` (version + versionCode), appends a new build entry to `metadata/com.marlinid.marlin.yml` (copying the previous entry's build steps, using the tag name as `commit:`), commits both files, tags, and pushes. The `fdroid-sync` GHA workflow then handles the rest automatically — see CI and tooling below.
+
+When Node.js needs updating between releases, edit the `sudo:` block in the new recipe entry manually (version URL + SHA-256) before or after running the script.
+
 ## F-Droid distribution
 
 The app is distributed on F-Droid under package ID `com.marlinid.marlin`. The recipe lives in `metadata/com.marlinid.marlin.yml` (mirrored into the `fdroiddata` fork at `gitlab.com/fiwille/fdroiddata`).
@@ -182,7 +192,9 @@ Use `npx expo start --clear` to bust the Metro cache after adding `.web.ts` stub
 ## CI and tooling
 
 ### GitHub Actions
-One workflow in `.github/workflows/ci.yml` — runs on every push/PR to `main`: `npm audit --audit-level=high` → `expo lint` → `tsc --noEmit` → `jest --coverage`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
+Two workflows in `.github/workflows/`:
+- **`ci.yml`** — runs on every push/PR to `main`: `npm audit --audit-level=high` → `expo lint` → `tsc --noEmit` → `jest --coverage`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
+- **`fdroid-sync.yml`** — triggers on any `v*.*.*` tag push. Runs `fdroid rewritemeta` to canonicalize the recipe YAML, then clones `gitlab.com/fiwille/fdroiddata` via a `GITLAB_TOKEN` secret and pushes the updated recipe, which triggers the F-Droid build pipeline. No manual GitLab interaction needed after tagging.
 
 ### Pre-commit hooks
 `husky` + `lint-staged`: runs `eslint --fix` on staged `.ts`/`.tsx` files before each commit. Installed automatically via the `prepare` npm script on `npm install`. Skipped in CI automatically by husky.
