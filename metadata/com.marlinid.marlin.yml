@@ -9,6 +9,8 @@ SourceCode: https://github.com/fwille/marlin
 IssueTracker: https://github.com/fwille/marlin/issues
 Changelog: https://github.com/fwille/marlin/releases
 
+AutoName: Marlin
+
 RepoType: git
 Repo: https://github.com/fwille/marlin.git
 
