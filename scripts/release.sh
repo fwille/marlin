@@ -25,6 +25,13 @@ CURRENT_VERSION=$(node -p "require('./app.json').expo.version")
 CURRENT_CODE=$(node -p "require('./app.json').expo.android.versionCode")
 NEW_CODE=$((CURRENT_CODE + 1))
 
+# Require changelog for the new versionCode before making any changes
+CHANGELOG="metadata/en-US/changelogs/${NEW_CODE}.txt"
+if [[ ! -f "$CHANGELOG" ]] || [[ ! -s "$CHANGELOG" ]]; then
+  echo "Error: release notes missing — create $CHANGELOG first" >&2
+  exit 1
+fi
+
 echo "→ $CURRENT_VERSION (versionCode $CURRENT_CODE) → $VERSION (versionCode $NEW_CODE)"
 
 # Bump app.json
