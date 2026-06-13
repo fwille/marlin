@@ -25,11 +25,44 @@ CURRENT_VERSION=$(node -p "require('./app.json').expo.version")
 CURRENT_CODE=$(node -p "require('./app.json').expo.android.versionCode")
 NEW_CODE=$((CURRENT_CODE + 1))
 
-# Require changelog for the new versionCode before making any changes
+# Generate release notes if not already written
 CHANGELOG="metadata/en-US/changelogs/${NEW_CODE}.txt"
 if [[ ! -f "$CHANGELOG" ]] || [[ ! -s "$CHANGELOG" ]]; then
-  echo "Error: release notes missing — create $CHANGELOG first" >&2
-  exit 1
+  echo "→ Generating release notes…"
+  LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+  if [[ -n "$LAST_TAG" ]]; then
+    GIT_LOG=$(git log "${LAST_TAG}..HEAD" --oneline --no-merges)
+  else
+    GIT_LOG=$(git log --oneline --no-merges | head -20)
+  fi
+  PROMPT="Write 1-3 sentences of plain English release notes for the Marlin app (a marine species identification and life-list app for Android). Based on these git commits:
+
+${GIT_LOG}
+
+Rules:
+- Focus only on user-visible changes (new features, bug fixes the user would notice)
+- Ignore: docs, CI, F-Droid recipe changes, tests, tooling, dependency updates
+- If there are no user-facing changes write exactly: Internal improvements. No user-facing changes.
+- Plain text only — no markdown, no bullet points, no lists
+- Maximum 500 characters
+- Output only the release notes text, nothing else"
+
+  NOTES=$(npx --yes @anthropic-ai/claude-code -p "$PROMPT" 2>/dev/null)
+  if [[ -z "$NOTES" ]]; then
+    echo "Error: failed to generate release notes — create $CHANGELOG manually and re-run" >&2
+    exit 1
+  fi
+  printf '%s' "$NOTES" > "$CHANGELOG"
+  echo ""
+  echo "Generated release notes:"
+  echo "────────────────────────"
+  cat "$CHANGELOG"
+  echo ""
+  echo "────────────────────────"
+  read -r -p "Edit before continuing? [y/N] " EDIT
+  if [[ "$EDIT" =~ ^[Yy]$ ]]; then
+    ${EDITOR:-nano} "$CHANGELOG"
+  fi
 fi
 
 echo "→ $CURRENT_VERSION (versionCode $CURRENT_CODE) → $VERSION (versionCode $NEW_CODE)"
