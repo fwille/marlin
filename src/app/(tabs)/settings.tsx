@@ -175,7 +175,7 @@ export default function SettingsScreen() {
           <View style={styles.infoRow}>
             <Ionicons name="alert-circle" size={15} color="#e65100" style={styles.infoIcon} />
             <Text style={[styles.infoText, isDark && styles.infoTextDark]}>
-              Your own sighting photos — not included, since the export is plain text and can't carry image files. Back up your photo gallery separately if you want to keep them.
+              Photos are not included — the export is plain text and cannot carry image files. After restoring a backup your sighting records come back, but photos will be missing and need to be re-attached to each sighting manually.
             </Text>
           </View>
         </View>
