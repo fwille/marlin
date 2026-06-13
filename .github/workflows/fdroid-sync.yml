@@ -1,0 +1,37 @@
+name: F-Droid sync
+
+on:
+  push:
+    tags: ['v[0-9]*.[0-9]*.[0-9]*']
+
+jobs:
+  sync:
+    name: Sync recipe to fdroiddata
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Canonicalize recipe with rewritemeta
+        run: |
+          pip install fdroidserver --quiet
+          fdroid rewritemeta com.marlinid.marlin
+
+      - name: Push recipe to fdroiddata fork
+        env:
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+        run: |
+          git clone --depth 1 \
+            "https://oauth2:${GITLAB_TOKEN}@gitlab.com/fiwille/fdroiddata.git" \
+            /tmp/fdroiddata
+          cp metadata/com.marlinid.marlin.yml /tmp/fdroiddata/metadata/
+          cd /tmp/fdroiddata
+          git config user.email "marlinid.app@gmail.com"
+          git config user.name "Marlin Release Bot"
+          git add metadata/com.marlinid.marlin.yml
+          if git diff --staged --quiet; then
+            echo "Recipe unchanged — nothing to push"
+          else
+            git commit -m "Update com.marlinid.marlin to ${GITHUB_REF_NAME}"
+            git push
+          fi
