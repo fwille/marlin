@@ -19,7 +19,8 @@ Repo: https://github.com/fwille/marlin.git
 Builds:
   - versionName: 1.1.4
     versionCode: 71
-    commit: 0dcbfecca0fb5c18050415c1d5666156c0b74847
+    commit: dfcd1131a9c7eebc15db74f8934f328ff4d5c96b
+    subdir: android/app
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
@@ -28,22 +29,18 @@ Builds:
     output: android/app/build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
       - sdkmanager 'cmake;3.22.1'
-      - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' package.json
-      - npx expo prebuild --clean --no-install --platform android
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> android/gradle.properties
-      - echo 'expo.inlineModules.watchedDirectories=[]' >> android/gradle.properties
-      - echo 'android.enableMinifyInReleaseBuilds=true' >> android/gradle.properties
-      - echo 'android.enableShrinkResourcesInReleaseBuilds=true' >> android/gradle.properties
-      - sed -i -e '/signingConfig /d' android/app/build.gradle
+      - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' ../../package.json
+      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
+      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
+      - sed -i -e '/signingConfig /d' build.gradle
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
-        false } }' >> android/app/build.gradle
-      - echo 'android { lint { checkReleaseBuilds false } }' >> android/app/build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 71/' android/app/build.gradle
-      - echo 'reactNativeArchitectures=armeabi-v7a' >> android/gradle.properties
-      - sed -i '/jvmToolchain/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
+        false } }' >> build.gradle
+      - echo 'android { lint { checkReleaseBuilds false } }' >> build.gradle
+      - sed -i -E 's/versionCode [0-9]+/versionCode 71/' build.gradle
+      - echo 'reactNativeArchitectures=armeabi-v7a' >> ../../android/gradle.properties
+      - sed -i '/jvmToolchain/s/17/21/' ../../node_modules/@react-native/gradle-plugin/*/build.gradle.kts
       - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
-        node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
+        ../../node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
       - node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
@@ -53,12 +50,14 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    build: gradle -p android :app:assembleRelease
+    gradle:
+      - assembleRelease
     ndk: 27.1.12297006
 
   - versionName: 1.1.4
     versionCode: 72
-    commit: 0dcbfecca0fb5c18050415c1d5666156c0b74847
+    commit: dfcd1131a9c7eebc15db74f8934f328ff4d5c96b
+    subdir: android/app
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
@@ -67,22 +66,18 @@ Builds:
     output: android/app/build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
       - sdkmanager 'cmake;3.22.1'
-      - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' package.json
-      - npx expo prebuild --clean --no-install --platform android
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> android/gradle.properties
-      - echo 'expo.inlineModules.watchedDirectories=[]' >> android/gradle.properties
-      - echo 'android.enableMinifyInReleaseBuilds=true' >> android/gradle.properties
-      - echo 'android.enableShrinkResourcesInReleaseBuilds=true' >> android/gradle.properties
-      - sed -i -e '/signingConfig /d' android/app/build.gradle
+      - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' ../../package.json
+      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
+      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
+      - sed -i -e '/signingConfig /d' build.gradle
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
-        false } }' >> android/app/build.gradle
-      - echo 'android { lint { checkReleaseBuilds false } }' >> android/app/build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 72/' android/app/build.gradle
-      - echo 'reactNativeArchitectures=arm64-v8a' >> android/gradle.properties
-      - sed -i '/jvmToolchain/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
+        false } }' >> build.gradle
+      - echo 'android { lint { checkReleaseBuilds false } }' >> build.gradle
+      - sed -i -E 's/versionCode [0-9]+/versionCode 72/' build.gradle
+      - echo 'reactNativeArchitectures=arm64-v8a' >> ../../android/gradle.properties
+      - sed -i '/jvmToolchain/s/17/21/' ../../node_modules/@react-native/gradle-plugin/*/build.gradle.kts
       - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
-        node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
+        ../../node_modules/@react-native/gradle-plugin/react-native-gradle-plugin/src/main/kotlin/com/facebook/react/utils/JdkConfiguratorUtils.kt
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
       - node_modules/expo-modules-core/android/ExpoModulesCorePlugin.gradle
@@ -92,7 +87,8 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    build: gradle -p android :app:assembleRelease
+    gradle:
+      - assembleRelease
     ndk: 27.1.12297006
 
 AutoUpdateMode: Version
