@@ -7,7 +7,9 @@ Read the exact versioned docs at https://docs.expo.dev/versions/v56.0.0/ before 
 Keep git commit messages concise — short subject line, no body/description unless truly necessary.
 
 # F-Droid recipe
-Before pushing any change to `metadata/com.marlinid.marlin.yml`, read the full file and verify:
+Before pushing any change to `metadata/com.marlinid.marlin.yml`, run `fdroid rewritemeta com.marlinid.marlin` from the repo root and commit the result. The pipeline enforces canonical YAML ordering — if you skip this step, the `fdroid rewritemeta` CI job will fail.
+
+Then read the full file and verify:
 - Both build entries (versionCodes ending in 1 and 2) have the change applied symmetrically
 - `CurrentVersion` and `CurrentVersionCode` are updated correctly
 - `commit:` fields point to the intended SHA, not a tag name

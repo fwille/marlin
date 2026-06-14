@@ -26,6 +26,8 @@ Builds:
       - apt-get update
       - apt-get install -y -t forky nodejs npm
     init: npm ci --omit=dev
+    gradle:
+      - assembleRelease
     output: android/app/build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
       - sdkmanager 'cmake;3.22.1'
@@ -50,8 +52,6 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    gradle:
-      - assembleRelease
     ndk: 27.1.12297006
 
   - versionName: 1.1.4
@@ -63,6 +63,8 @@ Builds:
       - apt-get update
       - apt-get install -y -t forky nodejs npm
     init: npm ci --omit=dev
+    gradle:
+      - assembleRelease
     output: android/app/build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
       - sdkmanager 'cmake;3.22.1'
@@ -87,8 +89,6 @@ Builds:
       - node_modules/react-native-webview/android/build.gradle
     scandelete:
       - node_modules
-    gradle:
-      - assembleRelease
     ndk: 27.1.12297006
 
 AutoUpdateMode: Version
