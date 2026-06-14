@@ -1,0 +1,1 @@
+Internal improvements: dev tooling moved to devDependencies to reduce APK size and remove unnecessary permissions from the F-Droid build.
