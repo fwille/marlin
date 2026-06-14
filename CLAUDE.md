@@ -4,7 +4,7 @@
 
 ## What this app is
 
-Marlin is a marine species identification and life-list app for fish and marine life. No camera/photo-ID feature yet.
+Marlin is an aquatic species identification and life-list app for divers and snorkelers (marine and freshwater). No in-app camera capture is planned (divers log sightings post-dive from gallery photos). Photo-ID is not under active consideration.
 
 ## Tech stack
 
@@ -159,12 +159,6 @@ Two other APIs are layered on top, both optional and gated so the app degrades g
 - **Wikipedia** (`getWikipediaSummary`) — calls `en.wikipedia.org/w/api.php` directly (not iNaturalist) for the species-detail summary blurb, using the title parsed out of the taxon's `wikipedia_url`.
 - **IUCN Red List** (`getIucnStatus`) — calls `api.iucnredlist.org`, gated behind an optional `EXPO_PUBLIC_IUCN_TOKEN` in `.env.local` (`HAS_IUCN_TOKEN` flags whether it's configured); without it, conservation-status badges simply don't appear.
 
-## Maps render fine in Expo Go — but Android as a whole no longer runs there
-
-Maps use `react-native-webview` with Leaflet/OpenStreetMap (no Google Maps API key, and `react-native-webview` ships with Expo Go), so the map *components themselves* need no dev build.
-
-However, **Expo Go can't run the Android app at all anymore**: the custom `native-location` module (see Key patterns above) isn't present in Expo Go's binary, and `useLocation` — which the Nearby tab calls on mount — throws `Cannot find native module 'NativeLocation'` immediately. iOS/web are unaffected (they still use `expo-location`, which Expo Go bundles).
-
 ## Releasing
 
 ```bash
@@ -174,8 +168,8 @@ However, **Expo Go can't run the Android app at all anymore**: the custom `nativ
 The script:
 1. Checks for `metadata/en-US/changelogs/{newVersionCode}.txt`. If missing, calls `npx @anthropic-ai/claude-code -p` with the git log since the last tag to generate a draft, then pauses for review. Write the file yourself beforehand to skip generation.
 2. Bumps `app.json` (version + versionCode) and `android/app/build.gradle` (so F-Droid `checkupdates` can read the version without running `expo prebuild`).
-3. Appends a new build entry to `metadata/com.marlinid.marlin.yml` (copying the previous entry's build steps, using the tag name as `commit:`).
-4. Commits all three files, tags, and pushes to GitHub.
+3. Commits the version bump, then captures the commit SHA and appends new build entries to `metadata/com.marlinid.marlin.yml` — one per `VercodeOperation` entry (currently two: armeabi-v7a and arm64-v8a), using the commit SHA (not the tag name) as `commit:`.
+4. Commits the recipe separately, tags, and pushes to GitHub.
 
 The `fdroid-sync` GHA workflow then canonicalises the recipe with `fdroid rewritemeta` and pushes it to the fdroiddata GitLab fork automatically.
 
@@ -195,8 +189,9 @@ Key recipe constraints:
 - **`buildFromSource`**: injected via `sed` into `package.json` so all native modules compile from source rather than using prebuilt binaries.
 - **`expo.inlineModules.watchedDirectories=[]`**: written to `android/gradle.properties` in prebuild — without it, `ExpoAutolinkingPlugin` passes an empty argument to `--watched-directories-serialized` and `JSON.parse` throws.
 - **`lint { checkReleaseBuilds false }`**: appended to `android/app/build.gradle` — prevents `:lintVitalRelease` from triggering `lintVitalAnalyzeRelease` on every submodule, which exhausts Metaspace on the build server.
-- **ABI filter `arm64-v8a` + `armeabi-v7a`**: appended to `android/app/build.gradle` — compiling all four ABIs (including x86) from source exhausts memory on the build server and hits the 1-hour runner timeout.
-- **`scandelete: node_modules`**: removes all of `node_modules` before the binary scan; `scanignore` entries must therefore point to files that exist after the build (validated by F-Droid) but are acceptable prebuilts.
+- **ABI filter `arm64-v8a` + `armeabi-v7a`**: set via `echo 'reactNativeArchitectures=armeabi-v7a' >> android/gradle.properties` (one line per ABI build entry). Do **not** use `ndk { abiFilters }` in `build.gradle` — RN's `NdkConfiguratorUtils.finalizeDsl` callback overwrites it after prebuild's sed runs. The gradle property is the only reliable hook.
+- **R8 minification + resource shrinking**: `android.enableMinifyInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true` are appended to `android/gradle.properties` in prebuild — both default to `false` in Expo's generated config.
+- **`scandelete: node_modules`**: removes all of `node_modules` before the binary scan; `scanignore` entries must therefore point to files that exist after the build (validated by F-Droid) but are acceptable prebuilts. **The binary scan runs before `scandelete`** — `scanignore` entries for paths inside `node_modules/` are required even when `scandelete: node_modules` is present.
 - **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. Long shell commands wrap onto continuation lines; avoid `printf` with `\n` escapes (wrapping breaks inside the string) and use separate `echo` calls instead. The `fdroid-sync` GHA runs `rewritemeta` automatically on each tag push. Recipe fixes pushed **between** releases must be manually pushed to fdroiddata via SSH: `git clone -b com.marlinid.marlin git@gitlab.com:fiwille/fdroiddata.git`, apply the change, commit, and push.
 
 ## Running the project
@@ -237,4 +232,4 @@ Default label vocabulary (needs-triage, needs-info, ready-for-agent, ready-for-h
 
 ### Domain docs
 
-Single-context layout — CONTEXT.md + docs/adr/ at the repo root (neither exists yet; created lazily by /grill-with-docs). See `docs/agents/domain.md`.
+Single-context layout — `CONTEXT.md` (domain glossary) + `docs/adr/` (architecture decisions) at the repo root. See `docs/agents/domain.md`.
