@@ -33,6 +33,8 @@ Builds:
       - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
       - echo 'org.gradle.workers.max=2' >> android/gradle.properties
       - echo 'expo.inlineModules.watchedDirectories=[]' >> android/gradle.properties
+      - echo 'android.enableMinifyInReleaseBuilds=true' >> android/gradle.properties
+      - echo 'android.enableShrinkResourcesInReleaseBuilds=true' >> android/gradle.properties
       - sed -i -e '/signingConfig /d' android/app/build.gradle
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
         false } }' >> android/app/build.gradle
@@ -70,6 +72,8 @@ Builds:
       - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
       - echo 'org.gradle.workers.max=2' >> android/gradle.properties
       - echo 'expo.inlineModules.watchedDirectories=[]' >> android/gradle.properties
+      - echo 'android.enableMinifyInReleaseBuilds=true' >> android/gradle.properties
+      - echo 'android.enableShrinkResourcesInReleaseBuilds=true' >> android/gradle.properties
       - sed -i -e '/signingConfig /d' android/app/build.gradle
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
         false } }' >> android/app/build.gradle
