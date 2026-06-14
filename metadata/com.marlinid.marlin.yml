@@ -17,9 +17,9 @@ RepoType: git
 Repo: https://github.com/fwille/marlin.git
 
 Builds:
-  - versionName: 1.1.3
-    versionCode: 61
-    commit: cbb996c3c36aa12e86172c8823ce5e0b8530e43c
+  - versionName: 1.1.4
+    versionCode: 71
+    commit: 0dcbfecca0fb5c18050415c1d5666156c0b74847
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
@@ -37,7 +37,7 @@ Builds:
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
         false } }' >> android/app/build.gradle
       - echo 'android { lint { checkReleaseBuilds false } }' >> android/app/build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 61/' android/app/build.gradle
+      - sed -i -E 's/versionCode [0-9]+/versionCode 71/' android/app/build.gradle
       - echo 'reactNativeArchitectures=armeabi-v7a' >> android/gradle.properties
       - sed -i '/jvmToolchain/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
       - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
@@ -54,9 +54,9 @@ Builds:
     build: gradle -p android :app:assembleRelease
     ndk: 27.1.12297006
 
-  - versionName: 1.1.3
-    versionCode: 62
-    commit: cbb996c3c36aa12e86172c8823ce5e0b8530e43c
+  - versionName: 1.1.4
+    versionCode: 72
+    commit: 0dcbfecca0fb5c18050415c1d5666156c0b74847
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
@@ -74,7 +74,7 @@ Builds:
       - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle =
         false } }' >> android/app/build.gradle
       - echo 'android { lint { checkReleaseBuilds false } }' >> android/app/build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 62/' android/app/build.gradle
+      - sed -i -E 's/versionCode [0-9]+/versionCode 72/' android/app/build.gradle
       - echo 'reactNativeArchitectures=arm64-v8a' >> android/gradle.properties
       - sed -i '/jvmToolchain/s/17/21/' node_modules/@react-native/gradle-plugin/*/build.gradle.kts
       - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
@@ -96,5 +96,5 @@ UpdateCheckMode: Tags v(.+)
 VercodeOperation:
   - '%c * 10 + 1'
   - '%c * 10 + 2'
-CurrentVersion: 1.1.3
-CurrentVersionCode: 62
+CurrentVersion: 1.1.4
+CurrentVersionCode: 72
