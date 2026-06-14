@@ -76,34 +76,72 @@ app.expo.android.versionCode = $NEW_CODE;
 fs.writeFileSync('app.json', JSON.stringify(app, null, 2) + '\n');
 "
 
-# Add new build entry to the F-Droid recipe, using the tag name as commit ref
+# Keep android/app/build.gradle in sync so F-Droid checkupdates can read the version
+sed -i -E "s/versionCode [0-9]+/versionCode $NEW_CODE/" android/app/build.gradle
+sed -i -E "s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
+
+# Commit app code first so we have the SHA to embed in the recipe
+git add app.json "metadata/en-US/changelogs/${NEW_CODE}.txt" android/app/build.gradle
+git commit -m "chore: bump version to $VERSION"
+COMMIT_SHA=$(git rev-parse HEAD)
+
+# Add new build entries to the F-Droid recipe — one per VercodeOperation entry,
+# copying the matching entry from the previous version. Uses the commit SHA (not
+# the tag name) so the reference is immutable.
 python3 - <<EOF
-import yaml, copy, sys
+import ast, yaml, copy
+
+def _eval_node(node):
+    if isinstance(node, ast.Constant) and isinstance(node.value, int):
+        return node.value
+    if isinstance(node, ast.BinOp):
+        l, r = _eval_node(node.left), _eval_node(node.right)
+        ops = {ast.Add: lambda a,b: a+b, ast.Sub: lambda a,b: a-b,
+               ast.Mult: lambda a,b: a*b, ast.FloorDiv: lambda a,b: a//b,
+               ast.Mod: lambda a,b: a%b}
+        if type(node.op) in ops:
+            return ops[type(node.op)](l, r)
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
+        return -_eval_node(node.operand)
+    raise ValueError(f"Unsafe expression node: {ast.dump(node)}")
+
+def vcode(op, code):
+    # VercodeOperation is always simple arithmetic like '%c * 10 + 1'.
+    # Evaluate without eval() by walking the AST directly.
+    expr = op.replace('%c', str(int(code)))
+    tree = ast.parse(expr, mode='eval')
+    return _eval_node(tree.body)
 
 path = 'metadata/com.marlinid.marlin.yml'
 with open(path) as f:
     recipe = yaml.safe_load(f)
 
-last = recipe['Builds'][-1]
-new_build = copy.deepcopy(last)
-new_build['versionName'] = '${VERSION}'
-new_build['versionCode'] = ${NEW_CODE}
-new_build['commit'] = 'v${VERSION}'
+operations = recipe.get('VercodeOperation', ['%c'])
+current_code = ${CURRENT_CODE}
+new_code = ${NEW_CODE}
 
-recipe['Builds'].append(new_build)
+# Find build entries for the current version by matching their versionCodes
+current_vcodes = [vcode(op, current_code) for op in operations]
+current_entries = [b for b in recipe['Builds'] if b['versionCode'] in current_vcodes]
+if not current_entries:
+    current_entries = recipe['Builds'][-len(operations):]
+
+for op, entry in zip(operations, current_entries):
+    new_entry = copy.deepcopy(entry)
+    new_entry['versionName'] = '${VERSION}'
+    new_entry['versionCode'] = vcode(op, new_code)
+    new_entry['commit'] = '${COMMIT_SHA}'
+    recipe['Builds'].append(new_entry)
+
 recipe['CurrentVersion'] = '${VERSION}'
-recipe['CurrentVersionCode'] = ${NEW_CODE}
+recipe['CurrentVersionCode'] = max(vcode(op, new_code) for op in operations)
 
 with open(path, 'w') as f:
     yaml.safe_dump(recipe, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
 EOF
 
-# Keep android/app/build.gradle in sync so F-Droid checkupdates can read the version
-sed -i -E "s/versionCode [0-9]+/versionCode $NEW_CODE/" android/app/build.gradle
-sed -i -E "s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
-
-git add app.json metadata/com.marlinid.marlin.yml android/app/build.gradle
-git commit -m "chore: bump version to $VERSION"
+git add metadata/com.marlinid.marlin.yml
+git commit -m "chore: update F-Droid recipe for $VERSION"
 git tag "v$VERSION"
 git push origin main "v$VERSION"
 
