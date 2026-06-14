@@ -7,7 +7,6 @@
     "@tanstack/react-query": "^5.101.0",
     "expo": "~56.0.11",
     "expo-constants": "~56.0.18",
-    "expo-dev-client": "~56.0.20",
     "expo-document-picker": "~56.0.4",
     "expo-font": "~56.0.6",
     "expo-image": "~56.0.11",
@@ -35,6 +34,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "expo-dev-client": "~56.0.20",
     "@types/jest": "^29.5.14",
     "@types/react": "~19.2.2",
     "eslint": "^9.39.4",
