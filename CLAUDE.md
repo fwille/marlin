@@ -71,9 +71,11 @@ modules/
 
 android/                      Committed bare-workflow output of `expo prebuild` — lets F-Droid checkupdates
                               read versionCode/versionName from android/app/build.gradle without running
-                              prebuild first. The F-Droid recipe still runs `expo prebuild --clean` for
-                              reproducibility, which overwrites these files during the actual build.
-                              Update by running `npx expo prebuild --platform android` and committing.
+                              prebuild first. The recipe runs `expo prebuild --no-install` (without `--clean`)
+                              so committed customisations survive: R8 settings + `expo.inlineModules.watchedDirectories`
+                              in gradle.properties; `dependenciesInfo`/`lint` blocks + NDK subprojects block
+                              in build.gradle files. Update by running `npx expo prebuild --platform android`
+                              and committing.
 
 metadata/
   com.marlinid.marlin.yml     F-Droid recipe — build instructions, scanignore/scandelete, NDK version
@@ -179,20 +181,21 @@ When Node.js needs updating between releases, edit the `sudo:` block in the new 
 
 The app is distributed on F-Droid under package ID `com.marlinid.marlin`. The recipe lives in `metadata/com.marlinid.marlin.yml` (mirrored into the `fdroiddata` fork at `gitlab.com/fiwille/fdroiddata`).
 
-The `android/` directory is committed (bare workflow) so F-Droid's `checkupdates` step can read `android/app/build.gradle` for `versionCode`/`versionName` at the tag. F-Droid can't read from `app.json` (Expo-specific). The recipe still runs `expo prebuild --clean` during the build for reproducibility — it overwrites the committed files.
+The `android/` directory is committed (bare workflow) so F-Droid's `checkupdates` step can read `android/app/build.gradle` for `versionCode`/`versionName` at the tag. F-Droid can't read from `app.json` (Expo-specific). The recipe runs `expo prebuild --no-install` (without `--clean`) so committed settings in `android/` are preserved during the build.
 
 The recipe declares `AntiFeatures: [TetheredNet]` because the discovery features (Nearby, Search, Species detail) depend entirely on iNaturalist's API, which cannot easily be self-hosted.
 
 Key recipe constraints:
-- **Node.js**: downloaded from nodejs.org in the `sudo:` block with SHA-256 verification — F-Droid's build server has no Node.
-- **`expo prebuild`**: run in `prebuild:` with `--clean --no-install --platform android`; generates the `android/` directory.
-- **`buildFromSource`**: injected via `sed` into `package.json` so all native modules compile from source rather than using prebuilt binaries.
-- **`expo.inlineModules.watchedDirectories=[]`**: written to `android/gradle.properties` in prebuild — without it, `ExpoAutolinkingPlugin` passes an empty argument to `--watched-directories-serialized` and `JSON.parse` throws.
-- **`lint { checkReleaseBuilds false }`**: appended to `android/app/build.gradle` — prevents `:lintVitalRelease` from triggering `lintVitalAnalyzeRelease` on every submodule, which exhausts Metaspace on the build server.
-- **ABI filter `arm64-v8a` + `armeabi-v7a`**: set via `echo 'reactNativeArchitectures=armeabi-v7a' >> android/gradle.properties` (one line per ABI build entry). Do **not** use `ndk { abiFilters }` in `build.gradle` — RN's `NdkConfiguratorUtils.finalizeDsl` callback overwrites it after prebuild's sed runs. The gradle property is the only reliable hook.
-- **R8 minification + resource shrinking**: `android.enableMinifyInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true` are appended to `android/gradle.properties` in prebuild — both default to `false` in Expo's generated config.
+- **Node.js**: installed from Debian `forky` in the `sudo:` block — F-Droid's build server ships an older Node.
+- **`expo prebuild`**: run in `prebuild:` with `--no-install --platform android` (no `--clean`) so committed settings in `android/` are preserved.
+- **`buildFromSource`**: committed in `package.json` under `expo.autolinking.android.buildFromSource: [".*"]` so all native modules compile from source. This lives in source rather than being injected via `sed`.
+- **`expo.inlineModules.watchedDirectories=[]`**: committed to `android/gradle.properties` — without it, `ExpoAutolinkingPlugin` passes an empty argument to `--watched-directories-serialized` and `JSON.parse` throws.
+- **`lint { checkReleaseBuilds false }`**: committed to `android/app/build.gradle` — prevents `:lintVitalRelease` from triggering `lintVitalAnalyzeRelease` on every submodule, which exhausts Metaspace on the build server.
+- **ABI filter `arm64-v8a` + `armeabi-v7a`**: set via `gradleprops: [reactNativeArchitectures=armeabi-v7a]` per build entry. Do **not** use `ndk { abiFilters }` in `build.gradle` — RN's `NdkConfiguratorUtils.finalizeDsl` callback overwrites it. The gradle property is the only reliable hook.
+- **R8 minification + resource shrinking**: `android.enableMinifyInReleaseBuilds=true` and `android.enableShrinkResourcesInReleaseBuilds=true` committed to `android/gradle.properties`. `expo.useLegacyPackaging=true` is also set there to compress native `.so` libs and reduce APK download size.
+- **NDK version propagation**: `android/build.gradle` has a `subprojects { plugins.withId("com.android.library") { android { ndkVersion rootProject.ext.ndkVersion } } }` block. Without it, library modules with C++ code (e.g. `expo-sqlite`) pick up the server's default side-by-side NDK, which differs from `ndk.dir` and triggers CXX1104.
 - **`scandelete: node_modules`**: removes all of `node_modules` before the binary scan; `scanignore` entries must therefore point to files that exist after the build (validated by F-Droid) but are acceptable prebuilts. **The binary scan runs before `scandelete`** — `scanignore` entries for paths inside `node_modules/` are required even when `scandelete: node_modules` is present.
-- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. Long shell commands wrap onto continuation lines; avoid `printf` with `\n` escapes (wrapping breaks inside the string) and use separate `echo` calls instead. The `fdroid-sync` GHA runs `rewritemeta` automatically on each tag push. Recipe fixes pushed **between** releases must be manually pushed to fdroiddata via SSH: `git clone -b com.marlinid.marlin git@gitlab.com:fiwille/fdroiddata.git`, apply the change, commit, and push.
+- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. The `fdroid-sync` GHA runs `rewritemeta` automatically on each tag push. Recipe fixes pushed **between** releases must be manually pushed to fdroiddata via SSH: `git clone -b com.marlinid.marlin git@gitlab.com:fiwille/fdroiddata.git`, apply the change, commit, and push.
 
 ## Running the project
 
