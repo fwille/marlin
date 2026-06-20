@@ -65,7 +65,8 @@
       "android": {
         "exclude": [
           "expo-location"
-        ]
+        ],
+        "buildFromSource": [".*"]
       }
     }
   }
