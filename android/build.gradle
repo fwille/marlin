@@ -22,3 +22,15 @@ allprojects {
 
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
+
+// Propagate the NDK version resolved by ExpoRootProjectPlugin to all library
+// subprojects. Without this, modules with C++ code but no explicit ndkVersion
+// (e.g. expo-sqlite) pick up the server's default side-by-side NDK, which can
+// differ from ndk.dir and trigger CXX1104.
+subprojects {
+  plugins.withId("com.android.library") {
+    android {
+      ndkVersion rootProject.ext.ndkVersion
+    }
+  }
+}
