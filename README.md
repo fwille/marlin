@@ -12,13 +12,13 @@ Built with Expo + React Native.
 
 ## Features
 
-- **Nearby** — species commonly recorded near your current (or a manually chosen) location, powered by iNaturalist observation data
+- **Nearby** — species commonly recorded near your location, powered by iNaturalist observation data; tap the needle icon (top right) to set a custom location instead of GPS, handy for planning a dive trip or logging after the fact
 - **Search** — look up any marine species by name, or browse by classification (tap a chip like "Family: Requiem sharks" to explore relatives), optionally narrowed to species seen near you
 - **Species detail** — photos, range map, seasonality chart, Wikipedia summary, IUCN Red List conservation status, and recent sightings from the iNaturalist community (tap any photo to open a swipeable full-screen lightbox)
-- **Life List** — your personal record of every species you've logged, with swipe-to-delete
+- **Life List** — your personal record of every species you've logged; tap the trash icon on any entry to remove it
 - **My Map** — every sighting you've logged, pinned on a map and color-coded by taxonomic group (fish, sharks & rays, mollusks, jellyfish, marine mammals, …); tap a pin to jump to the sighting detail or species page
 - **Sightings** — attach notes, photos, and a tap-to-place location to each logged sighting; edit or delete any time
-- **Settings** — light/dark/system theme, manual export/import of your life list, and a manual location override (handy for logging a dive trip after the fact)
+- **Settings** — light/dark/system theme, and manual export/import of your life list
 
 No account or sign-up required — everything lives on your device, with manual export/import for safekeeping.
 
