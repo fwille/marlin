@@ -12,6 +12,8 @@ import WebView, { WebViewMessageEvent } from 'react-native-webview';
 import { Ionicons } from '@expo/vector-icons';
 import { reverseGeocode } from '@/lib/reverseGeocode';
 import { LEAFLET_HEAD } from '@/lib/leafletAssets';
+import PlaceSearch from './PlaceSearch';
+import { PlaceResult } from '@/lib/geocodeSearch';
 
 export interface PickedLocation {
   lat: number;
@@ -196,9 +198,22 @@ export default function LocationPicker({ value, onChange }: Props) {
     });
   }, []);
 
+  // A place-search result moves the pin without any map tap, so seed both maps
+  // (neither marker has moved on its own) and record it like a manual pick.
+  const handlePlaceSelect = useCallback((p: PlaceResult) => {
+    selectedRef.current = { lat: p.lat, lng: p.lng, name: selectedRef.current?.name };
+    inlineRef.current?.seed(p.lat, p.lng);
+    fullRef.current?.seed(p.lat, p.lng);
+    reverseGeocode(p.lat, p.lng).then(name => {
+      selectedRef.current = { lat: p.lat, lng: p.lng, name };
+      onChangeRef.current({ lat: p.lat, lng: p.lng, name });
+    });
+  }, []);
+
   return (
     <>
       {/* Inline picker */}
+      <PlaceSearch onSelect={handlePlaceSelect} containerStyle={styles.inlineSearch} />
       <View style={styles.container}>
         <MapPicker
           ref={inlineRef}
@@ -231,6 +246,7 @@ export default function LocationPicker({ value, onChange }: Props) {
                 onPick={(lat, lng) => handlePick('full', lat, lng)}
               />
             )}
+            <PlaceSearch onSelect={handlePlaceSelect} containerStyle={styles.fullscreenSearch} />
             <TouchableOpacity
               style={styles.closeBtn}
               onPress={() => setFullscreen(false)}>
@@ -246,6 +262,8 @@ export default function LocationPicker({ value, onChange }: Props) {
 const styles = StyleSheet.create({
   container: { height: 220, borderRadius: 12, overflow: 'hidden' },
   map: { flex: 1 },
+  inlineSearch: { marginBottom: 8 },
+  fullscreenSearch: { position: 'absolute', top: 12, left: 12, right: 60 },
   expandBtn: {
     position: 'absolute',
     bottom: 8,

@@ -17,6 +17,8 @@ import { useLifelist } from '@/store/lifelist';
 import { useLocation } from '@/hooks/useLocation';
 import { getTaxon } from '@/api/inaturalist';
 import { LEAFLET_HEAD } from '@/lib/leafletAssets';
+import PlaceSearch from './PlaceSearch';
+import { PlaceResult } from '@/lib/geocodeSearch';
 
 const OCEAN_BLUE = '#006994';
 
@@ -201,6 +203,10 @@ export default function SightingsMap() {
     } catch {}
   }, []);
 
+  const handlePlaceSelect = useCallback((p: PlaceResult) => {
+    webViewRef.current?.injectJavaScript(`flyTo(${p.lat},${p.lng}); true;`);
+  }, []);
+
   const matchCount = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return allPoints.length;
@@ -258,6 +264,13 @@ export default function SightingsMap() {
         )}
       </View>
 
+      <PlaceSearch
+        onSelect={handlePlaceSelect}
+        isDark={isDark}
+        placeholder="Jump to a place…"
+        containerStyle={styles.placeSearch}
+      />
+
       {legendGroups.length > 0 && (
         <View style={[styles.legend, isDark && styles.legendDark]}>
           {legendGroups.map(g => (
@@ -313,6 +326,7 @@ const styles = StyleSheet.create({
   filterBarDark: { backgroundColor: 'rgba(10,22,40,0.95)' },
   filterInput: { flex: 1, fontSize: 14, color: '#111', padding: 0 },
   filterCount: { fontSize: 12, color: '#888' },
+  placeSearch: { position: 'absolute', top: 62, left: 12, right: 12 },
   legend: {
     position: 'absolute',
     bottom: 24,

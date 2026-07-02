@@ -1,4 +1,4 @@
-import { useMemo, useRef, useEffect, useState } from 'react';
+import { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { router } from 'expo-router';
@@ -7,6 +7,8 @@ import { useQueries } from '@tanstack/react-query';
 import { useLifelist } from '@/store/lifelist';
 import { getTaxon } from '@/api/inaturalist';
 import { LEAFLET_HEAD } from '@/lib/leafletAssets';
+import PlaceSearch from './PlaceSearch';
+import { PlaceResult } from '@/lib/geocodeSearch';
 
 const OCEAN_BLUE = '#006994';
 
@@ -70,6 +72,10 @@ ${LEAFLET_HEAD}
   });
   function nav(id){window.parent.postMessage(JSON.stringify({type:'marlin_nav',id:id}),'*');}
   function navSighting(id){window.parent.postMessage(JSON.stringify({type:'marlin_nav_sighting',id:id}),'*');}
+  window.addEventListener('message',function(e){
+    try{var d=typeof e.data==='string'?JSON.parse(e.data):e.data;
+      if(d&&d.type==='marlin_flyto')map.flyTo([d.lat,d.lng],12);}catch(err){}
+  });
 <\/script>
 </body></html>`;
 }
@@ -78,6 +84,7 @@ export default function SightingsMap() {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
   const mapRef = useRef<any>(null);
+  const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const sightings = useLifelist(s => s.sightings);
   const [query, setQuery] = useState('');
 
@@ -138,6 +145,7 @@ export default function SightingsMap() {
     iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
     iframe.srcdoc = buildMapHtml(points);
     el.appendChild(iframe);
+    iframeRef.current = iframe;
     const handleMessage = (e: MessageEvent) => {
       try {
         const d = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
@@ -149,8 +157,16 @@ export default function SightingsMap() {
     return () => {
       if (el.contains(iframe)) el.removeChild(iframe);
       window.removeEventListener('message', handleMessage);
+      iframeRef.current = null;
     };
   }, [points]);
+
+  const handlePlaceSelect = useCallback((p: PlaceResult) => {
+    iframeRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ type: 'marlin_flyto', lat: p.lat, lng: p.lng }),
+      '*'
+    );
+  }, []);
 
   if (allPoints.length === 0) {
     return (
@@ -192,6 +208,12 @@ export default function SightingsMap() {
       ) : (
         <View style={styles.mapArea}>
           <View ref={mapRef} style={styles.mapArea} />
+          <PlaceSearch
+            onSelect={handlePlaceSelect}
+            isDark={isDark}
+            placeholder="Jump to a place…"
+            containerStyle={styles.placeSearch}
+          />
           {legendGroups.length > 0 && (
             <View style={[styles.legend, isDark && styles.legendDark]}>
               {legendGroups.map(g => (
@@ -229,6 +251,7 @@ const styles = StyleSheet.create({
   filterInput: { flex: 1, fontSize: 14, color: '#111', padding: 0 },
   filterCount: { fontSize: 12, color: '#888' },
   mapArea: { flex: 1 },
+  placeSearch: { position: 'absolute', top: 12, left: 12, right: 12 },
   legend: {
     position: 'absolute',
     bottom: 24,

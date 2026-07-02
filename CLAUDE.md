@@ -38,9 +38,10 @@ src/
     species/[id].tsx          Species detail + Add Sighting modal
     sighting/[id].tsx         Sighting detail — edit notes/location/photos, delete
   components/
-    SightingsMap.tsx(.web)      My Sightings map — pins colored by taxonomic group, with legend; tapping a pin shows a popup with "View sighting" and "View species" links
+    SightingsMap.tsx(.web)      My Sightings map — pins colored by taxonomic group, with legend; tapping a pin shows a popup with "View sighting" and "View species" links. Includes a PlaceSearch that flies the map to a searched place
     DistributionMap.tsx(.web)   Species distribution — Leaflet + iNat observation tiles
-    LocationPicker.tsx(.web)    Tap-to-place map for picking a sighting's location
+    LocationPicker.tsx(.web)    Tap-to-place map for picking a sighting's location (inline + fullscreen); includes a PlaceSearch that drops the pin at a searched place
+    PlaceSearch.tsx             Shared debounced place-name search box + results dropdown (pure RN, no .web variant) — used by SightingsMap and LocationPicker
     ZoomableImage.tsx           Pinch-to-zoom + swipe-through lightbox; accepts onSwipeLeft/onSwipeRight props — fires when scale === 1 and horizontal pan exceeds 50 px
     error-boundary.tsx              Top-level React error boundary (wraps root layout)
     themed-text.tsx, themed-view.tsx, hint-row.tsx,
@@ -57,6 +58,7 @@ src/
     photoStorage.ts           Resize + relocate sighting photos into document storage (see Key patterns)
     gpsLocation.ts(.android)      Current-position + permission primitives — iOS/web wrap expo-location, Android wraps ../../modules/native-location
     reverseGeocode.ts(.android)   Coordinates → place name — same iOS/web vs. Android split
+    geocodeSearch.ts          Place name → coordinates (forward geocoding for the map search boxes) via OpenStreetMap Nominatim. No platform split — a keyless fetch that works everywhere, incl. de-Googled Android where the device Geocoder returns nothing
     leafletAssets.ts          Vendored Leaflet 1.9.4 (CSS+JS+marker icons as data URIs) inlined into map HTML — no runtime CDN fetch. LEAFLET_ICON_OVERRIDE deletes L.Icon.Default.prototype._getIconUrl before mergeOptions so the parent implementation returns options.iconUrl directly without prepending imagePath (which would corrupt data URIs)
   store/
     lifelist.ts               Zustand lifelist store (sightings, optimistic add)
@@ -157,9 +159,10 @@ Base URL: `https://api.inaturalist.org/v1`
 
 Marine taxa filter: a curated `MARINE_TAXON_IDS` list of `taxon_id`s (`src/api/inaturalist.ts`) — fish, sharks & rays, cephalopods, cnidarians, echinoderms, decapods, cetaceans, sirenians, sea turtles. iNaturalist ignores repeated `taxon_id[]` params, so each ID is fanned out as a parallel request and results are merged by taxon. Comments in the file explain why specific IDs were chosen over broader (but partly terrestrial) groupings like Crustacea or Mammalia.
 
-Two other APIs are layered on top, both optional and gated so the app degrades gracefully without them:
+Three other external APIs are layered on top, all optional and gated so the app degrades gracefully without them:
 - **Wikipedia** (`getWikipediaSummary`) — calls `en.wikipedia.org/w/api.php` directly (not iNaturalist) for the species-detail summary blurb, using the title parsed out of the taxon's `wikipedia_url`.
 - **IUCN Red List** (`getIucnStatus`) — calls `api.iucnredlist.org`, gated behind an optional `EXPO_PUBLIC_IUCN_TOKEN` in `.env.local` (`HAS_IUCN_TOKEN` flags whether it's configured); without it, conservation-status badges simply don't appear.
+- **Nominatim** (`lib/geocodeSearch`) — calls `nominatim.openstreetmap.org` for the map place-name search (forward geocoding). Keyless; debounced client-side to respect the usage policy. Search just doesn't return results if it's unreachable — the maps still work.
 
 ## Releasing
 

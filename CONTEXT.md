@@ -37,7 +37,7 @@ F-Droid is the primary and currently sole distribution channel. Google Play was 
 The app must function on Android without Google Mobile Services (Play Services). This is a hard F-Droid distribution requirement. Consequences: `expo-location` is excluded from the Android build (replaced by a custom `native-location` module using AOSP `LocationManager`/`Geocoder`), and maps use Leaflet/OSM rather than Google Maps — see ADR-0001 and ADR-0002.
 
 ## Maps
-All map views (species distribution, Sightings map, Location picker) use Leaflet 1.9.4 via WebView with OpenStreetMap tiles. No API key or proprietary SDK is required. This is a hard constraint driven by F-Droid/GMS-free compatibility — see ADR-0001.
+All map views (species distribution, Sightings map, Location picker) use Leaflet 1.9.4 via WebView with OpenStreetMap tiles. No API key or proprietary SDK is required. This is a hard constraint driven by F-Droid/GMS-free compatibility — see ADR-0001. The Sightings map and Location picker also offer place-name search (forward geocoding) via OpenStreetMap Nominatim — keyless, and reliable on de-Googled Android where the device geocoder is not, for the same GMS-free reason.
 
 ## Discovery
 Finding Species to log, via Nearby (location-based) or Search (name-based). Discovery requires a network connection and is powered entirely by the iNaturalist API — there is no bundled species database. This is a pragmatic starting point, not a principled constraint; a local database could be added later. The dependency on iNaturalist is the reason for the F-Droid `TetheredNet` anti-feature declaration.

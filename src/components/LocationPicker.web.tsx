@@ -1,8 +1,10 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { PickedLocation } from './LocationPicker';
 import { LEAFLET_HEAD } from '@/lib/leafletAssets';
+import PlaceSearch from './PlaceSearch';
+import { PlaceResult, shortPlaceName } from '@/lib/geocodeSearch';
 
 interface Props {
   value: PickedLocation | null;
@@ -110,17 +112,31 @@ export default function LocationPicker({ value, onChange }: Props) {
     }
   }, [value]);
 
+  // A place-search result drops the pin at the chosen coords. The web map's HTML
+  // has no incoming-message channel, so rebuild its srcdoc with the pin baked in
+  // (same mechanism the async seed above uses). Nominatim already gives us a
+  // place name, which the tap path lacks on web (no reverse geocoding here).
+  const handlePlaceSelect = useCallback((p: PlaceResult) => {
+    seededRef.current = true;
+    onChangeRef.current({ lat: p.lat, lng: p.lng, name: shortPlaceName(p.name) });
+    if (iframeRef.current) iframeRef.current.srcdoc = buildPickerHtml(p.lat, p.lng);
+  }, []);
+
   return (
-    <View style={[styles.container, expanded && styles.containerExpanded]}>
-      <View ref={containerRef} style={styles.map} />
-      <TouchableOpacity style={styles.expandBtn} onPress={() => setExpanded(e => !e)}>
-        <Ionicons name={expanded ? 'contract' : 'expand'} size={16} color="#fff" />
-      </TouchableOpacity>
-    </View>
+    <>
+      <PlaceSearch onSelect={handlePlaceSelect} containerStyle={styles.search} />
+      <View style={[styles.container, expanded && styles.containerExpanded]}>
+        <View ref={containerRef} style={styles.map} />
+        <TouchableOpacity style={styles.expandBtn} onPress={() => setExpanded(e => !e)}>
+          <Ionicons name={expanded ? 'contract' : 'expand'} size={16} color="#fff" />
+        </TouchableOpacity>
+      </View>
+    </>
   );
 }
 
 const styles = StyleSheet.create({
+  search: { marginBottom: 8 },
   container: { height: 220, borderRadius: 12, overflow: 'hidden' },
   containerExpanded: { height: 460 },
   map: { flex: 1 },
