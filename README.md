@@ -31,8 +31,6 @@ No account or sign-up required — everything lives on your device, with manual 
 - [expo-sqlite](https://docs.expo.dev/versions/v56.0.0/sdk/sqlite/) for the on-device life list, and [Zustand](https://zustand-demo.pmnd.rs/) for app state
 - [Leaflet](https://leafletjs.com/) (via WebView/iframe + OpenStreetMap tiles) for all maps — no Google Maps API key needed
 
-See [CLAUDE.md](./CLAUDE.md) for a deeper tour of the source layout and the patterns used throughout (platform-specific files, map communication, Zustand selector rules, photo storage, etc.).
-
 ## Getting started
 
 ### Prerequisites
@@ -59,7 +57,7 @@ npx expo run:ios        # build & run a native dev client on iOS
 
 Use `npx expo start --clear` to bust the Metro cache after pulling changes that touch platform-specific (`.web.ts`/`.web.tsx`) files.
 
-> The project ships with `expo-dev-client` and several native modules — including a custom GMS-free location module on Android (see [CLAUDE.md](./CLAUDE.md)) — so `expo run:android`/`expo run:ios`, which build a custom dev client, is **required** to run the app on Android; Expo Go can no longer load it (it lacks that custom native module). iOS and web still run fine in Expo Go / a browser.
+> The project ships with `expo-dev-client` and several native modules — including a custom GMS-free location module on Android — so `expo run:android`/`expo run:ios`, which build a custom dev client, is **required** to run the app on Android; Expo Go can no longer load it (it lacks that custom native module). iOS and web still run fine in Expo Go / a browser.
 
 ## Project structure
 
@@ -77,8 +75,6 @@ src/
 android/        Committed bare-workflow Expo prebuild output (enables F-Droid version detection)
 metadata/       F-Droid recipe + Fastlane store listing (description, screenshots, changelogs)
 ```
-
-See [CLAUDE.md](./CLAUDE.md) for the full annotated layout.
 
 ## Scripts
 
