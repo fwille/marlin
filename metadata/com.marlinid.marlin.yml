@@ -88,7 +88,7 @@ Builds:
   ndk: 27.1.12297006
 - versionName: 1.2.0
   versionCode: 81
-  commit: 7d7c5ca3f4bed03edae80a7a06250158f259c057
+  commit: 5c955460ee49427319494c66ddf753991663a2b8
   subdir: android/app
   sudo:
   - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
@@ -124,7 +124,7 @@ Builds:
   ndk: 27.1.12297006
 - versionName: 1.2.0
   versionCode: 82
-  commit: 7d7c5ca3f4bed03edae80a7a06250158f259c057
+  commit: 5c955460ee49427319494c66ddf753991663a2b8
   subdir: android/app
   sudo:
   - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
