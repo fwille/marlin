@@ -1,5 +1,6 @@
-import { useRef, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { useRef, useEffect, useState } from 'react';
+import { View, StyleSheet, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { PickedLocation } from './LocationPicker';
 import { LEAFLET_HEAD } from '@/lib/leafletAssets';
 
@@ -67,6 +68,7 @@ ${LEAFLET_HEAD}
 export default function LocationPicker({ value, onChange }: Props) {
   const containerRef = useRef<any>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const [expanded, setExpanded] = useState(false);
   // Always call the latest onChange even though the effect runs once.
   const onChangeRef = useRef(onChange);
   useEffect(() => { onChangeRef.current = onChange; }, [onChange]);
@@ -108,9 +110,26 @@ export default function LocationPicker({ value, onChange }: Props) {
     }
   }, [value]);
 
-  return <View ref={containerRef} style={styles.map} />;
+  return (
+    <View style={[styles.container, expanded && styles.containerExpanded]}>
+      <View ref={containerRef} style={styles.map} />
+      <TouchableOpacity style={styles.expandBtn} onPress={() => setExpanded(e => !e)}>
+        <Ionicons name={expanded ? 'contract' : 'expand'} size={16} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  map: { height: 220, borderRadius: 12, overflow: 'hidden' },
+  container: { height: 220, borderRadius: 12, overflow: 'hidden' },
+  containerExpanded: { height: 460 },
+  map: { flex: 1 },
+  expandBtn: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 8,
+    padding: 6,
+  },
 });
