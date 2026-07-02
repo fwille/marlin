@@ -1,0 +1,1 @@
+Place-name search comes to the maps: search for a location on the My Map screen and when picking a spot for a sighting, so you can jump straight to a reef or dive site by name. The sighting location picker also gains a fullscreen button for more precise placement. Some unused app permissions have been removed for better privacy.
