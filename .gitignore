@@ -48,6 +48,13 @@ example
 # generated native folders
 /ios
 
+# stray extracted JAR contents accidentally unzipped at the repo root
+# (gradle-wrapper.jar / react-native-gradle-plugin jars — the real ones live
+# in android/gradle/wrapper and node_modules)
+/META-INF/
+/com/
+/org/
+
 # Claude Code local config, runtime state, and skills (machine/session-specific)
 .claude/
 
