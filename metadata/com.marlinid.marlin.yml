@@ -24,8 +24,8 @@ Builds:
   - apt-get install -y -t forky nodejs npm
   init: npm ci --omit=dev
   gradle:
-  - assembleRelease
-  output: android/app/build/outputs/apk/release/app-release-unsigned.apk
+  - yes
+  output: build/outputs/apk/release/app-release-unsigned.apk
   prebuild:
   - sdkmanager 'cmake;3.22.1'
   - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' ../../package.json
@@ -60,8 +60,8 @@ Builds:
   - apt-get install -y -t forky nodejs npm
   init: npm ci --omit=dev
   gradle:
-  - assembleRelease
-  output: android/app/build/outputs/apk/release/app-release-unsigned.apk
+  - yes
+  output: build/outputs/apk/release/app-release-unsigned.apk
   prebuild:
   - sdkmanager 'cmake;3.22.1'
   - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' ../../package.json
@@ -96,8 +96,8 @@ Builds:
   - apt-get install -y -t forky nodejs npm
   init: npm ci --omit=dev
   gradle:
-  - assembleRelease
-  output: android/app/build/outputs/apk/release/app-release-unsigned.apk
+  - yes
+  output: build/outputs/apk/release/app-release-unsigned.apk
   prebuild:
   - sdkmanager 'cmake;3.22.1'
   - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' ../../package.json
@@ -107,7 +107,7 @@ Builds:
   - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle = false
     } }' >> build.gradle
   - echo 'android { lint { checkReleaseBuilds false } }' >> build.gradle
-  - sed -i -E 's/versionCode [0-9]+/versionCode 71/' build.gradle
+  - sed -i -E 's/versionCode [0-9]+/versionCode 81/' build.gradle
   - echo 'reactNativeArchitectures=armeabi-v7a' >> ../../android/gradle.properties
   - sed -i '/jvmToolchain/s/17/21/' ../../node_modules/@react-native/gradle-plugin/*/build.gradle.kts
   - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
@@ -132,8 +132,8 @@ Builds:
   - apt-get install -y -t forky nodejs npm
   init: npm ci --omit=dev
   gradle:
-  - assembleRelease
-  output: android/app/build/outputs/apk/release/app-release-unsigned.apk
+  - yes
+  output: build/outputs/apk/release/app-release-unsigned.apk
   prebuild:
   - sdkmanager 'cmake;3.22.1'
   - sed -i -e '/"android":\ {/a "buildFromSource":[".*"],' ../../package.json
@@ -143,7 +143,7 @@ Builds:
   - echo 'android { dependenciesInfo { includeInApk = false; includeInBundle = false
     } }' >> build.gradle
   - echo 'android { lint { checkReleaseBuilds false } }' >> build.gradle
-  - sed -i -E 's/versionCode [0-9]+/versionCode 72/' build.gradle
+  - sed -i -E 's/versionCode [0-9]+/versionCode 82/' build.gradle
   - echo 'reactNativeArchitectures=arm64-v8a' >> ../../android/gradle.properties
   - sed -i '/jvmToolchain/s/17/21/' ../../node_modules/@react-native/gradle-plugin/*/build.gradle.kts
   - sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g' -e 's/jvmToolchain(17)/jvmToolchain(21)/g'
