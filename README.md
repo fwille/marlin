@@ -86,7 +86,7 @@ metadata/       F-Droid recipe + Fastlane store listing (description, screenshot
 | `npm run lint` | Lint with `expo lint` |
 | `npm run typecheck` | Type-check with `tsc --noEmit` |
 | `npm test` | Run unit tests with Jest |
-| `./scripts/release.sh <version>` | Bump version, tag, push — triggers the F-Droid sync workflow automatically |
+| `./scripts/release.sh <version>` | Bump version, tag, push — syncs the F-Droid recipe to the test fork automatically (see CLAUDE.md for how a release actually goes live) |
 
 ## License
 
