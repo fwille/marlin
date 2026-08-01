@@ -30,13 +30,13 @@ Builds:
       - yes
     output: build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
+      - cd ../..
       - sdkmanager 'cmake;3.22.1'
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
-      - sed -i -e '/signingConfig /d' build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 71/' build.gradle
-      - find ../../node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts'
-        -o -name '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
+      - npx expo prebuild --no-install --platform android
+      - echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
+      - sed -i -E 's/versionCode [0-9]+/versionCode 71/' android/app/build.gradle
+      - find node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name
+        '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
         -e 's/jvmToolchain(17)/jvmToolchain(21)/g' {} +
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
@@ -64,13 +64,13 @@ Builds:
       - yes
     output: build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
+      - cd ../..
       - sdkmanager 'cmake;3.22.1'
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
-      - sed -i -e '/signingConfig /d' build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 72/' build.gradle
-      - find ../../node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts'
-        -o -name '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
+      - npx expo prebuild --no-install --platform android
+      - echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
+      - sed -i -E 's/versionCode [0-9]+/versionCode 72/' android/app/build.gradle
+      - find node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name
+        '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
         -e 's/jvmToolchain(17)/jvmToolchain(21)/g' {} +
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
@@ -87,24 +87,23 @@ Builds:
 
   - versionName: 1.2.0
     versionCode: 81
-    commit: 5c955460ee49427319494c66ddf753991663a2b8
+    commit: 29171bce0fe8de0acf487cea30dccff1c424e902
     subdir: android/app
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
       - apt-get install -y -t forky nodejs npm
-    init: npm ci --omit=dev
     gradle:
       - yes
-    output: build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
+      - cd ../..
+      - npm ci --omit=dev
       - sdkmanager 'cmake;3.22.1'
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
-      - sed -i -e '/signingConfig /d' build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 81/' build.gradle
-      - find ../../node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts'
-        -o -name '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
+      - npx expo prebuild --no-install --platform android
+      - echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
+      - sed -i -E 's/versionCode .*/versionCode $$VERCODE$$/' android/app/build.gradle
+      - find node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name
+        '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
         -e 's/jvmToolchain(17)/jvmToolchain(21)/g' {} +
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
@@ -121,24 +120,23 @@ Builds:
 
   - versionName: 1.2.0
     versionCode: 82
-    commit: 5c955460ee49427319494c66ddf753991663a2b8
+    commit: 29171bce0fe8de0acf487cea30dccff1c424e902
     subdir: android/app
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
       - apt-get install -y -t forky nodejs npm
-    init: npm ci --omit=dev
     gradle:
       - yes
-    output: build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
+      - cd ../..
+      - npm ci --omit=dev
       - sdkmanager 'cmake;3.22.1'
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
-      - sed -i -e '/signingConfig /d' build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 82/' build.gradle
-      - find ../../node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts'
-        -o -name '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
+      - npx expo prebuild --no-install --platform android
+      - echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
+      - sed -i -E 's/versionCode .*/versionCode $$VERCODE$$/' android/app/build.gradle
+      - find node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name
+        '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
         -e 's/jvmToolchain(17)/jvmToolchain(21)/g' {} +
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
@@ -161,18 +159,17 @@ Builds:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
       - apt-get install -y -t forky nodejs npm
-    init: npm ci --omit=dev
     gradle:
       - yes
-    output: build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
+      - cd ../..
+      - npm ci --omit=dev
       - sdkmanager 'cmake;3.22.1'
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
-      - sed -i -e '/signingConfig /d' build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 91/' build.gradle
-      - find ../../node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts'
-        -o -name '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
+      - npx expo prebuild --no-install --platform android
+      - echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
+      - sed -i -E 's/versionCode .*/versionCode $$VERCODE$$/' android/app/build.gradle
+      - find node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name
+        '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
         -e 's/jvmToolchain(17)/jvmToolchain(21)/g' {} +
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc
@@ -195,18 +192,17 @@ Builds:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
       - apt-get update
       - apt-get install -y -t forky nodejs npm
-    init: npm ci --omit=dev
     gradle:
       - yes
-    output: build/outputs/apk/release/app-release-unsigned.apk
     prebuild:
+      - cd ../..
+      - npm ci --omit=dev
       - sdkmanager 'cmake;3.22.1'
-      - echo 'org.gradle.jvmargs=-Xmx3g -XX:MaxMetaspaceSize=1024m' >> ../../android/gradle.properties
-      - echo 'org.gradle.workers.max=2' >> ../../android/gradle.properties
-      - sed -i -e '/signingConfig /d' build.gradle
-      - sed -i -E 's/versionCode [0-9]+/versionCode 92/' build.gradle
-      - find ../../node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts'
-        -o -name '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
+      - npx expo prebuild --no-install --platform android
+      - echo 'org.gradle.jvmargs=-Xmx4g -XX:MaxMetaspaceSize=1024m' >> android/gradle.properties
+      - sed -i -E 's/versionCode .*/versionCode $$VERCODE$$/' android/app/build.gradle
+      - find node_modules -type f \( -name '*.gradle' -o -name '*.gradle.kts' -o -name
+        '*.kt' \) -exec sed -i -e 's/JavaVersion.VERSION_17/JavaVersion.VERSION_21/g'
         -e 's/jvmToolchain(17)/jvmToolchain(21)/g' {} +
     scanignore:
       - node_modules/hermes-compiler/hermesc/linux64-bin/hermesc

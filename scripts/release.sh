@@ -139,20 +139,13 @@ if not current_entries:
     current_entries = recipe['Builds'][-len(operations):]
 
 for op, entry in zip(operations, current_entries):
-    old_vcode = entry['versionCode']
     new_entry = copy.deepcopy(entry)
     new_entry['versionName'] = '${VERSION}'
     new_entry['versionCode'] = vcode(op, new_code)
     new_entry['commit'] = '${COMMIT_SHA}'
-    # prebuild steps stamp the versionCode into build.gradle via a literal
-    # 'sed ... versionCode <N>' string copied from the template entry — rewrite
-    # it too, or the new build silently ships with the OLD entry's versionCode
-    # (this broke the 1.2.0 and 1.2.1 F-Droid builds before this fix).
-    old_token = f'versionCode {old_vcode}'
-    new_token = f"versionCode {new_entry['versionCode']}"
-    new_entry['prebuild'] = [
-        step.replace(old_token, new_token) for step in new_entry.get('prebuild', [])
-    ]
+    # prebuild's `sed ... versionCode $$VERCODE$$` uses fdroidserver's own
+    # template placeholder (substituted at build time from this entry's
+    # versionCode field), so no text-rewriting is needed here.
     recipe['Builds'].append(new_entry)
 
 recipe['CurrentVersion'] = '${VERSION}'
