@@ -54,14 +54,20 @@ function SpeciesCard({ item }: { item: NearbySpecies }) {
   );
 }
 
+function formatAccuracy(accuracy: number): string {
+  return accuracy >= 1000 ? `±${(accuracy / 1000).toFixed(1)}km` : `±${Math.round(accuracy)}m`;
+}
+
 function LocationPickerModal({
   visible,
   onClose,
   isManual,
+  accuracy,
 }: {
   visible: boolean;
   onClose: () => void;
   isManual: boolean;
+  accuracy?: number;
 }) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
@@ -92,6 +98,14 @@ function LocationPickerModal({
         <Text style={[styles.modalHint, isDark && { color: '#aaa' }]}>
           Tap the map to place a pin where you want to look for marine life.
         </Text>
+        {!isManual && accuracy != null && (
+          <View style={styles.accuracyRow}>
+            <Ionicons name="locate" size={14} color={OCEAN_BLUE} />
+            <Text style={[styles.accuracyText, isDark && styles.hintDark]}>
+              Current GPS accuracy: {formatAccuracy(accuracy)}
+            </Text>
+          </View>
+        )}
         <View style={styles.pickerWrapper}>
           <LocationPicker value={picked} onChange={setPicked} />
         </View>
@@ -126,7 +140,7 @@ export default function NearbyScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [query, setQuery] = useState('');
 
-  const { location, loading: locLoading, isManual, locationName, requestGps } = useLocation();
+  const { location, loading: locLoading, isManual, locationName, accuracy, requestGps } = useLocation();
   const { data, isLoading, error, refetch } = useNearby(location);
 
   const filteredData = useMemo(() => {
@@ -174,7 +188,7 @@ export default function NearbyScreen() {
             <Text style={styles.setLocationTextOutline}>Set location on map</Text>
           </TouchableOpacity>
         </View>
-        <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
+        <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} accuracy={accuracy} />
       </SafeAreaView>
     );
   }
@@ -192,6 +206,11 @@ export default function NearbyScreen() {
           <Text style={[styles.locationBtnLabel, isDark && styles.locationBtnLabelDark]} numberOfLines={2}>
             {isManual ? (locationName ?? 'Custom') : 'GPS'}
           </Text>
+          {!isManual && accuracy != null && (
+            <Text style={[styles.locationBtnAccuracy, isDark && styles.locationBtnLabelDark]}>
+              {formatAccuracy(accuracy)}
+            </Text>
+          )}
         </TouchableOpacity>
       </View>
       {!isLoading && !error && (data?.length ?? 0) > 0 && (
@@ -250,7 +269,7 @@ export default function NearbyScreen() {
         contentContainerStyle={styles.list}
         keyboardDismissMode="on-drag"
       />
-      <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
+      <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} accuracy={accuracy} />
     </SafeAreaView>
   );
 }
@@ -272,6 +291,7 @@ const styles = StyleSheet.create({
   locationBtn: { alignItems: 'center', paddingLeft: 16, paddingVertical: 4, maxWidth: 88 },
   locationBtnLabel: { fontSize: 11, color: '#555', marginTop: 3, textAlign: 'center' },
   locationBtnLabelDark: { color: '#aaa' },
+  locationBtnAccuracy: { fontSize: 10, color: '#888', marginTop: 1, textAlign: 'center' },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -359,6 +379,8 @@ const styles = StyleSheet.create({
   pickerWrapper: { flex: 1, borderRadius: 12, overflow: 'hidden' },
   pickedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pickedName: { fontSize: 14, color: '#333', flex: 1 },
+  accuracyRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  accuracyText: { fontSize: 13, color: '#555' },
   confirmBtn: {
     backgroundColor: OCEAN_BLUE,
     borderRadius: 24,

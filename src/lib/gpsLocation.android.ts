@@ -10,6 +10,8 @@ import * as NativeLocation from '../../modules/native-location';
 export interface UserLocation {
   lat: number;
   lng: number;
+  /** Radius of 68% confidence, in meters. Absent if the provider didn't report one. */
+  accuracy?: number;
 }
 
 export async function getForegroundPermissionStatus(): Promise<string> {
@@ -25,7 +27,7 @@ export async function requestForegroundPermissionStatus(): Promise<string> {
 export async function fetchCurrentPosition(): Promise<UserLocation | null> {
   try {
     const loc = await NativeLocation.getCurrentPositionAsync();
-    return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+    return { lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy ?? undefined };
   } catch {
     return null;
   }

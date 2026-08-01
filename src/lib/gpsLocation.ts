@@ -7,6 +7,8 @@ import * as Location from 'expo-location';
 export interface UserLocation {
   lat: number;
   lng: number;
+  /** Radius of 68% confidence, in meters. Absent if the platform didn't report one. */
+  accuracy?: number;
 }
 
 export async function getForegroundPermissionStatus(): Promise<string> {
@@ -24,7 +26,7 @@ export async function fetchCurrentPosition(): Promise<UserLocation | null> {
     const loc = await Location.getCurrentPositionAsync({
       accuracy: Location.Accuracy.Balanced,
     });
-    return { lat: loc.coords.latitude, lng: loc.coords.longitude };
+    return { lat: loc.coords.latitude, lng: loc.coords.longitude, accuracy: loc.coords.accuracy ?? undefined };
   } catch {
     return null;
   }

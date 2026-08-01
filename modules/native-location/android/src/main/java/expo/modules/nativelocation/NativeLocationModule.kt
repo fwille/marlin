@@ -43,7 +43,11 @@ class CoordinatesParams : Record {
 
 class PermissionStatusResult(@Field val status: String) : Record
 
-class Coordinates(@Field val latitude: Double, @Field val longitude: Double) : Record
+class Coordinates(
+  @Field val latitude: Double,
+  @Field val longitude: Double,
+  @Field val accuracy: Double?
+) : Record
 
 class PositionResult(@Field val coords: Coordinates) : Record
 
@@ -126,7 +130,8 @@ class NativeLocationModule : Module() {
       ?: manager.getLastKnownLocation(provider)
       ?: throw CodedException("ERR_LOCATION_UNAVAILABLE", "Could not determine the current location", null)
 
-    return PositionResult(Coordinates(location.latitude, location.longitude))
+    val accuracy = if (location.hasAccuracy()) location.accuracy.toDouble() else null
+    return PositionResult(Coordinates(location.latitude, location.longitude, accuracy))
   }
 
   private fun bestAvailableProvider(manager: LocationManager): String? = when {
