@@ -11,6 +11,9 @@ expo-env.d.ts
 
 # Native
 .kotlin/
+# Gradle build outputs/cache from local Expo modules (modules/*/android/build|.gradle/)
+modules/**/android/build/
+modules/**/android/.gradle/
 *.orig.*
 *.jks
 *.p8
