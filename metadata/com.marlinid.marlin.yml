@@ -19,7 +19,7 @@ Repo: https://github.com/fwille/marlin.git
 Builds:
   - versionName: 1.1.4
     versionCode: 71
-    commit: dfcd1131a9c7eebc15db74f8934f328ff4d5c96b
+    commit: f68b87c871f627a5237dbf4e6826098390cff0bb
     subdir: android/app
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
@@ -56,7 +56,7 @@ Builds:
 
   - versionName: 1.1.4
     versionCode: 72
-    commit: dfcd1131a9c7eebc15db74f8934f328ff4d5c96b
+    commit: f68b87c871f627a5237dbf4e6826098390cff0bb
     subdir: android/app
     sudo:
       - echo "deb https://deb.debian.org/debian forky main" > /etc/apt/sources.list.d/forky.list
