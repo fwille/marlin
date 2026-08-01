@@ -88,8 +88,18 @@ COMMIT_SHA=$(git rev-parse HEAD)
 # Add new build entries to the F-Droid recipe — one per VercodeOperation entry,
 # copying the matching entry from the previous version. Uses the commit SHA (not
 # the tag name) so the reference is immutable.
+#
+# Uses ruamel.yaml in round-trip mode (YAML 1.2), not PyYAML (YAML 1.1+), because
+# the recipe's `gradle: [yes]` is F-Droid's documented "no flavors" idiom — it
+# only works if the loaded value is the *string* 'yes'. PyYAML's YAML-1.1 resolver
+# treats bare `yes` as a boolean, so a load/dump round-trip through it silently
+# rewrites `gradle: [yes]` into `gradle: [true]`, which fdroidserver's own build
+# code then reads as flavor "True" and runs the nonexistent `assembleTrueRelease`
+# gradle task — breaking every build entry in the file, not just the new one.
+command -v fdroid >/dev/null 2>&1 || pip install fdroidserver --quiet
 python3 - <<EOF
-import ast, yaml, copy
+import ast, copy
+import ruamel.yaml
 
 def _eval_node(node):
     if isinstance(node, ast.Constant) and isinstance(node.value, int):
@@ -113,8 +123,10 @@ def vcode(op, code):
     return _eval_node(tree.body)
 
 path = 'metadata/com.marlinid.marlin.yml'
+yaml = ruamel.yaml.YAML(typ='rt')
+yaml.preserve_quotes = True
 with open(path) as f:
-    recipe = yaml.safe_load(f)
+    recipe = yaml.load(f)
 
 operations = recipe.get('VercodeOperation', ['%c'])
 current_code = ${CURRENT_CODE}
@@ -127,18 +139,33 @@ if not current_entries:
     current_entries = recipe['Builds'][-len(operations):]
 
 for op, entry in zip(operations, current_entries):
+    old_vcode = entry['versionCode']
     new_entry = copy.deepcopy(entry)
     new_entry['versionName'] = '${VERSION}'
     new_entry['versionCode'] = vcode(op, new_code)
     new_entry['commit'] = '${COMMIT_SHA}'
+    # prebuild steps stamp the versionCode into build.gradle via a literal
+    # 'sed ... versionCode <N>' string copied from the template entry — rewrite
+    # it too, or the new build silently ships with the OLD entry's versionCode
+    # (this broke the 1.2.0 and 1.2.1 F-Droid builds before this fix).
+    old_token = f'versionCode {old_vcode}'
+    new_token = f"versionCode {new_entry['versionCode']}"
+    new_entry['prebuild'] = [
+        step.replace(old_token, new_token) for step in new_entry.get('prebuild', [])
+    ]
     recipe['Builds'].append(new_entry)
 
 recipe['CurrentVersion'] = '${VERSION}'
 recipe['CurrentVersionCode'] = max(vcode(op, new_code) for op in operations)
 
 with open(path, 'w') as f:
-    yaml.safe_dump(recipe, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    yaml.dump(recipe, f)
 EOF
+
+# Canonicalize before committing — the fdroid-sync GHA workflow does this
+# right before pushing to fdroiddata, so if we skip it here the GitHub copy
+# silently drifts out of canonical format until the next tag push.
+fdroid rewritemeta com.marlinid.marlin
 
 git add metadata/com.marlinid.marlin.yml
 git commit -m "chore: update F-Droid recipe for $VERSION"
