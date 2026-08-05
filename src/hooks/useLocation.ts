@@ -64,15 +64,12 @@ export function useLocation() {
 
   const location = forced ? manualLoc : (gpsLocation ?? manualLoc ?? null);
   const loading = gpsLoading;
-  const usingGps = !forced && !!gpsLocation;
 
   return {
     location,
     loading,
     isManual: forced || (!gpsLocation && !!manualLoc),
     locationName: manualLoc?.name,
-    /** GPS accuracy radius in meters — only meaningful while `location` is the live GPS fix. */
-    accuracy: usingGps ? gpsLocation?.accuracy : undefined,
     requestGps,
   };
 }

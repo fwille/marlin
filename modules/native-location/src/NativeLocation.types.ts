@@ -7,8 +7,6 @@ export interface PermissionResponse {
 export interface LocationCoordinates {
   latitude: number;
   longitude: number;
-  /** Radius of 68% confidence, in meters. Absent if the provider didn't report one. */
-  accuracy?: number;
 }
 
 export interface LocationResult {
