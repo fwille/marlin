@@ -9,11 +9,20 @@ import { PlaceResult, shortPlaceName } from '@/lib/geocodeSearch';
 interface Props {
   value: PickedLocation | null;
   onChange: (loc: PickedLocation) => void;
+  /** Current GPS fix, shown as a fixed reference dot so the user can visually
+   * compare it against the (possibly different) pin they're placing. */
+  gpsLocation?: { lat: number; lng: number } | null;
 }
 
+// The GPS dot is a plain circleMarker (no icon asset needed) styled like the
+// familiar "blue dot" convention, so it reads unambiguously as "you are here"
+// rather than as another draggable pin.
+const GPS_MARKER_STYLE = "{radius:8,color:'#fff',weight:2,fillColor:'#4285F4',fillOpacity:1}";
+
 // Keep a ref to the latest onChange so the message handler never goes stale.
-function buildPickerHtml(lat?: number, lng?: number): string {
+function buildPickerHtml(lat?: number, lng?: number, gpsLat?: number, gpsLng?: number): string {
   const hasPin = lat !== undefined && lng !== undefined;
+  const hasGps = gpsLat !== undefined && gpsLng !== undefined;
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -30,8 +39,8 @@ ${LEAFLET_HEAD}
 <div id="hint">Tap map to place pin · drag to adjust</div>
 <script>
   var map = L.map('map').setView(
-    [${hasPin ? lat : 20},${hasPin ? lng : 0}],
-    ${hasPin ? 14 : 2}
+    [${hasPin ? lat : (hasGps ? gpsLat : 20)},${hasPin ? lng : (hasGps ? gpsLng : 0)}],
+    ${hasPin || hasGps ? 14 : 2}
   );
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'\\u00a9 OpenStreetMap'
@@ -39,6 +48,9 @@ ${LEAFLET_HEAD}
 
   var marker = ${hasPin
     ? `L.marker([${lat},${lng}],{draggable:true}).addTo(map)`
+    : 'null'};
+  var gpsMarker = ${hasGps
+    ? `L.circleMarker([${gpsLat},${gpsLng}],${GPS_MARKER_STYLE}).addTo(map)`
     : 'null'};
 
   function send(lat,lng){
@@ -67,7 +79,7 @@ ${LEAFLET_HEAD}
 </body></html>`;
 }
 
-export default function LocationPicker({ value, onChange }: Props) {
+export default function LocationPicker({ value, onChange, gpsLocation }: Props) {
   const containerRef = useRef<any>(null);
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
   const [expanded, setExpanded] = useState(false);
@@ -81,7 +93,7 @@ export default function LocationPicker({ value, onChange }: Props) {
 
     const iframe = document.createElement('iframe');
     iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
-    iframe.srcdoc = buildPickerHtml(value?.lat, value?.lng);
+    iframe.srcdoc = buildPickerHtml(value?.lat, value?.lng, gpsLocation?.lat, gpsLocation?.lng);
     iframeRef.current = iframe;
     el.appendChild(iframe);
 
@@ -100,17 +112,25 @@ export default function LocationPicker({ value, onChange }: Props) {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // `value` often starts null and is seeded asynchronously (e.g. GPS resolves
-  // after this picker has already mounted, as in the Add Sighting modal). The
-  // iframe's HTML is built once above, so reload it once with the seed baked
-  // in — only the first time, so we don't fight the user's own taps/drags.
+  // `value` and `gpsLocation` often start null and resolve asynchronously
+  // (e.g. GPS resolves after this picker has already mounted, as in the Add
+  // Sighting modal). The iframe's HTML is built once above, so reload it once
+  // each becomes available — only the first time for each, so we don't fight
+  // the user's own taps/drags.
   const seededRef = useRef(!!value);
+  const gpsSeededRef = useRef(!!gpsLocation);
   useEffect(() => {
     if (!seededRef.current && value && iframeRef.current) {
       seededRef.current = true;
-      iframeRef.current.srcdoc = buildPickerHtml(value.lat, value.lng);
+      iframeRef.current.srcdoc = buildPickerHtml(value.lat, value.lng, gpsLocation?.lat, gpsLocation?.lng);
     }
-  }, [value]);
+  }, [value, gpsLocation]);
+  useEffect(() => {
+    if (!gpsSeededRef.current && gpsLocation && iframeRef.current) {
+      gpsSeededRef.current = true;
+      iframeRef.current.srcdoc = buildPickerHtml(value?.lat, value?.lng, gpsLocation.lat, gpsLocation.lng);
+    }
+  }, [gpsLocation, value]);
 
   // A place-search result drops the pin at the chosen coords. The web map's HTML
   // has no incoming-message channel, so rebuild its srcdoc with the pin baked in

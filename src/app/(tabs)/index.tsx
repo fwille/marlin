@@ -58,10 +58,12 @@ function LocationPickerModal({
   visible,
   onClose,
   isManual,
+  gpsLocation,
 }: {
   visible: boolean;
   onClose: () => void;
   isManual: boolean;
+  gpsLocation?: { lat: number; lng: number } | null;
 }) {
   const scheme = useColorScheme();
   const isDark = scheme === 'dark';
@@ -92,8 +94,16 @@ function LocationPickerModal({
         <Text style={[styles.modalHint, isDark && { color: '#aaa' }]}>
           Tap the map to place a pin where you want to look for marine life.
         </Text>
+        {gpsLocation && (
+          <View style={styles.gpsLegendRow}>
+            <View style={styles.gpsDot} />
+            <Text style={[styles.gpsLegendText, isDark && styles.hintDark]}>
+              Blue dot shows your current GPS location
+            </Text>
+          </View>
+        )}
         <View style={styles.pickerWrapper}>
-          <LocationPicker value={picked} onChange={setPicked} />
+          <LocationPicker value={picked} onChange={setPicked} gpsLocation={gpsLocation} />
         </View>
         {picked && (
           <View style={styles.pickedRow}>
@@ -126,7 +136,7 @@ export default function NearbyScreen() {
   const [showPicker, setShowPicker] = useState(false);
   const [query, setQuery] = useState('');
 
-  const { location, loading: locLoading, isManual, locationName, requestGps } = useLocation();
+  const { location, loading: locLoading, isManual, locationName, gpsLocation, requestGps } = useLocation();
   const { data, isLoading, error, refetch } = useNearby(location);
 
   const filteredData = useMemo(() => {
@@ -174,7 +184,7 @@ export default function NearbyScreen() {
             <Text style={styles.setLocationTextOutline}>Set location on map</Text>
           </TouchableOpacity>
         </View>
-        <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
+        <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} gpsLocation={gpsLocation} />
       </SafeAreaView>
     );
   }
@@ -250,7 +260,7 @@ export default function NearbyScreen() {
         contentContainerStyle={styles.list}
         keyboardDismissMode="on-drag"
       />
-      <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} />
+      <LocationPickerModal visible={showPicker} onClose={() => setShowPicker(false)} isManual={isManual} gpsLocation={gpsLocation} />
     </SafeAreaView>
   );
 }
@@ -359,6 +369,16 @@ const styles = StyleSheet.create({
   pickerWrapper: { flex: 1, borderRadius: 12, overflow: 'hidden' },
   pickedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   pickedName: { fontSize: 14, color: '#333', flex: 1 },
+  gpsLegendRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  gpsDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4285F4',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  gpsLegendText: { fontSize: 13, color: '#666' },
   confirmBtn: {
     backgroundColor: OCEAN_BLUE,
     borderRadius: 24,

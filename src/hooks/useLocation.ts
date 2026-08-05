@@ -70,6 +70,8 @@ export function useLocation() {
     loading,
     isManual: forced || (!gpsLocation && !!manualLoc),
     locationName: manualLoc?.name,
+    /** The raw GPS fix, regardless of whether a manual location is currently active. */
+    gpsLocation,
     requestGps,
   };
 }

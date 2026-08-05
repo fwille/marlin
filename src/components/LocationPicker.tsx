@@ -24,10 +24,19 @@ export interface PickedLocation {
 interface Props {
   value: PickedLocation | null;
   onChange: (loc: PickedLocation) => void;
+  /** Current GPS fix, shown as a fixed reference dot so the user can visually
+   * compare it against the (possibly different) pin they're placing. */
+  gpsLocation?: { lat: number; lng: number } | null;
 }
 
-function buildPickerHtml(lat?: number, lng?: number): string {
+// The GPS dot is a plain circleMarker (no icon asset needed) styled like the
+// familiar "blue dot" convention, so it reads unambiguously as "you are here"
+// rather than as another draggable pin.
+const GPS_MARKER_STYLE = "{radius:8,color:'#fff',weight:2,fillColor:'#4285F4',fillOpacity:1}";
+
+function buildPickerHtml(lat?: number, lng?: number, gpsLat?: number, gpsLng?: number): string {
   const hasPin = lat !== undefined && lng !== undefined;
+  const hasGps = gpsLat !== undefined && gpsLng !== undefined;
   return `<!DOCTYPE html><html>
 <head>
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -44,8 +53,8 @@ ${LEAFLET_HEAD}
 <div id="hint">Tap map to place pin · drag to adjust</div>
 <script>
   var map = L.map('map').setView(
-    [${hasPin ? lat : 20},${hasPin ? lng : 0}],
-    ${hasPin ? 14 : 2}
+    [${hasPin ? lat : (hasGps ? gpsLat : 20)},${hasPin ? lng : (hasGps ? gpsLng : 0)}],
+    ${hasPin || hasGps ? 14 : 2}
   );
   L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
     attribution:'© OpenStreetMap'
@@ -53,6 +62,9 @@ ${LEAFLET_HEAD}
 
   var marker = ${hasPin
     ? `L.marker([${lat},${lng}],{draggable:true}).addTo(map)`
+    : 'null'};
+  var gpsMarker = ${hasGps
+    ? `L.circleMarker([${gpsLat},${gpsLng}],${GPS_MARKER_STYLE}).addTo(map)`
     : 'null'};
 
   function send(lat,lng){
@@ -77,27 +89,36 @@ ${LEAFLET_HEAD}
     document.getElementById('hint').style.display='none';
     map.setView([lat,lng],14);
   };
+
+  window.setGpsMarker=function(lat,lng){
+    if(gpsMarker){ gpsMarker.setLatLng([lat,lng]); }
+    else{ gpsMarker=L.circleMarker([lat,lng],${GPS_MARKER_STYLE}).addTo(map); }
+  };
 <\/script>
 </body></html>`;
 }
 
 export interface MapPickerHandle {
   seed: (lat: number, lng: number) => void;
+  setGps: (lat: number, lng: number) => void;
 }
 
 interface MapPickerProps {
   initialLat?: number;
   initialLng?: number;
+  initialGpsLat?: number;
+  initialGpsLng?: number;
   onPick: (lat: number, lng: number) => void;
 }
 
 // A single interactive Leaflet WebView. Both the inline preview and the
 // full-screen modal render one of these; the parent keeps their pins in sync
-// via the imperative `seed` handle. Seeds arriving before the page has loaded
-// are queued (injectJavaScript made too early is silently dropped, not queued).
+// via the imperative `seed`/`setGps` handles. Calls arriving before the page
+// has loaded are queued (injectJavaScript made too early is silently dropped,
+// not queued).
 const MapPicker = forwardRef<MapPickerHandle, MapPickerProps>(
-  ({ initialLat, initialLng, onPick }, ref) => {
-    const [html] = useState(() => buildPickerHtml(initialLat, initialLng));
+  ({ initialLat, initialLng, initialGpsLat, initialGpsLng, onPick }, ref) => {
+    const [html] = useState(() => buildPickerHtml(initialLat, initialLng, initialGpsLat, initialGpsLng));
     const webViewRef = useRef<WebView>(null);
     const onPickRef = useRef(onPick);
     useEffect(() => {
@@ -106,9 +127,14 @@ const MapPicker = forwardRef<MapPickerHandle, MapPickerProps>(
 
     const readyRef = useRef(false);
     const pendingRef = useRef<{ lat: number; lng: number } | null>(null);
+    const pendingGpsRef = useRef<{ lat: number; lng: number } | null>(null);
 
     const doSeed = useCallback((lat: number, lng: number) => {
       webViewRef.current?.injectJavaScript(`window.seedLocation(${lat},${lng}); true;`);
+    }, []);
+
+    const doSetGps = useCallback((lat: number, lng: number) => {
+      webViewRef.current?.injectJavaScript(`window.setGpsMarker(${lat},${lng}); true;`);
     }, []);
 
     useImperativeHandle(
@@ -118,8 +144,12 @@ const MapPicker = forwardRef<MapPickerHandle, MapPickerProps>(
           if (readyRef.current) doSeed(lat, lng);
           else pendingRef.current = { lat, lng };
         },
+        setGps(lat, lng) {
+          if (readyRef.current) doSetGps(lat, lng);
+          else pendingGpsRef.current = { lat, lng };
+        },
       }),
-      [doSeed]
+      [doSeed, doSetGps]
     );
 
     const handleLoadEnd = useCallback(() => {
@@ -129,7 +159,12 @@ const MapPicker = forwardRef<MapPickerHandle, MapPickerProps>(
         pendingRef.current = null;
         doSeed(p.lat, p.lng);
       }
-    }, [doSeed]);
+      const g = pendingGpsRef.current;
+      if (g) {
+        pendingGpsRef.current = null;
+        doSetGps(g.lat, g.lng);
+      }
+    }, [doSeed, doSetGps]);
 
     const handleMessage = useCallback((event: WebViewMessageEvent) => {
       try {
@@ -154,7 +189,7 @@ const MapPicker = forwardRef<MapPickerHandle, MapPickerProps>(
 );
 MapPicker.displayName = 'MapPicker';
 
-export default function LocationPicker({ value, onChange }: Props) {
+export default function LocationPicker({ value, onChange, gpsLocation }: Props) {
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -164,6 +199,7 @@ export default function LocationPicker({ value, onChange }: Props) {
   // Coords captured when the full-screen map opens, so its WebView renders with
   // the current pin already in place (avoids reading a ref during render).
   const [fullSeed, setFullSeed] = useState<PickedLocation | null>(null);
+  const [fullGpsSeed, setFullGpsSeed] = useState<{ lat: number; lng: number } | null>(null);
   const inlineRef = useRef<MapPickerHandle>(null);
   const fullRef = useRef<MapPickerHandle>(null);
 
@@ -171,6 +207,20 @@ export default function LocationPicker({ value, onChange }: Props) {
   // value present at mount; later updates reach the maps via `seed`.
   const selectedRef = useRef<PickedLocation | null>(value);
   const [initial] = useState(() => value);
+  const [initialGps] = useState(() => gpsLocation);
+
+  // GPS often resolves after this picker has already mounted, so keep the
+  // reference dot in sync via `setGps` the same way `value` is kept in sync
+  // via `seed`.
+  const gpsRef = useRef(gpsLocation);
+  useEffect(() => {
+    if (!gpsLocation) return;
+    const cur = gpsRef.current;
+    if (cur && cur.lat === gpsLocation.lat && cur.lng === gpsLocation.lng) return;
+    gpsRef.current = gpsLocation;
+    inlineRef.current?.setGps(gpsLocation.lat, gpsLocation.lng);
+    fullRef.current?.setGps(gpsLocation.lat, gpsLocation.lng);
+  }, [gpsLocation]);
 
   // `value` often starts null and is seeded asynchronously (e.g. GPS resolves
   // after this picker has already mounted, as in the Add Sighting modal), or the
@@ -219,12 +269,15 @@ export default function LocationPicker({ value, onChange }: Props) {
           ref={inlineRef}
           initialLat={initial?.lat}
           initialLng={initial?.lng}
+          initialGpsLat={initialGps?.lat}
+          initialGpsLng={initialGps?.lng}
           onPick={(lat, lng) => handlePick('inline', lat, lng)}
         />
         <TouchableOpacity
           style={styles.expandBtn}
           onPress={() => {
             setFullSeed(selectedRef.current);
+            setFullGpsSeed(gpsRef.current ?? null);
             setFullscreen(true);
           }}>
           <Ionicons name="expand" size={16} color="#fff" />
@@ -243,6 +296,8 @@ export default function LocationPicker({ value, onChange }: Props) {
                 ref={fullRef}
                 initialLat={fullSeed?.lat}
                 initialLng={fullSeed?.lng}
+                initialGpsLat={fullGpsSeed?.lat}
+                initialGpsLng={fullGpsSeed?.lng}
                 onPick={(lat, lng) => handlePick('full', lat, lng)}
               />
             )}
