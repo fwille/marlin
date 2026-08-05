@@ -85,6 +85,15 @@ git add app.json "metadata/en-US/changelogs/${NEW_CODE}.txt" android/app/build.g
 git commit -m "chore: bump version to $VERSION"
 COMMIT_SHA=$(git rev-parse HEAD)
 
+# Tag this commit now, not after the recipe commit that follows. F-Droid's
+# checkupdates bot resolves `commit:` for new entries from wherever the
+# matching git tag actually points (UpdateCheckMode: Tags v(.+)) — if the tag
+# landed on the later recipe commit instead, our own commit: (captured above)
+# would permanently mismatch the bot's, and every future release's entries
+# would get spuriously rebuilt on the fdroiddata fork (they looked "changed"
+# relative to upstream even though nothing in them actually differed).
+git tag "v$VERSION"
+
 # Add new build entries to the F-Droid recipe — one per VercodeOperation entry,
 # copying the matching entry from the previous version. Uses the commit SHA (not
 # the tag name) so the reference is immutable.
@@ -162,7 +171,6 @@ fdroid rewritemeta com.marlinid.marlin
 
 git add metadata/com.marlinid.marlin.yml
 git commit -m "chore: update F-Droid recipe for $VERSION"
-git tag "v$VERSION"
 git push origin main "v$VERSION"
 
 echo "✓ Tagged and pushed v$VERSION"
