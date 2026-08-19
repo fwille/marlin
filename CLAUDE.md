@@ -239,7 +239,9 @@ Use `npx expo start --clear` to bust the Metro cache after adding `.web.ts` stub
 
 ### GitHub Actions
 Two workflows in `.github/workflows/`:
-- **`ci.yml`** — runs on every push/PR to `main`: `npm audit --audit-level=high` → `expo lint` → `tsc --noEmit` → `jest --coverage`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
+- **`ci.yml`** — runs on every push/PR to `main`: `expo lint` → `tsc --noEmit` → `jest --coverage` → `npm run audit`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
+
+  The audit step runs **last** and goes through `scripts/audit-check.mjs`, not `npm audit` directly. npm has no way to ignore a single advisory, so one unpatched upstream advisory would otherwise pin CI red forever — and while audit ran *first*, it also skipped lint/typecheck/tests whenever it tripped. The script fails on any high/critical advisory except those in its `ALLOWLIST`, and additionally fails if an allowlisted entry stops being reported, so suppressions can't go stale. Each entry records why it's safe and what would let it be removed. Currently allowlisted: the two `image-size` advisories (`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`), which have **no published fix** — the vulnerable range is `<=2.0.2` and 2.0.2 is the latest release. It reaches us only via `expo > @expo/metro > metro` at bundle time, and metro isn't shipped in the APK.
 - **`fdroid-sync.yml`** — triggers on any `v*.*.*` tag push. Runs `fdroid rewritemeta` to canonicalize the recipe YAML, then clones `gitlab.com/fiwille/fdroiddata` via a `GITLAB_TOKEN` secret and pushes the updated recipe, which triggers the F-Droid build pipeline. No manual GitLab interaction needed after tagging.
 
 ### Pre-commit hooks

@@ -54,6 +54,7 @@
     "lint": "expo lint",
     "typecheck": "tsc --noEmit",
     "test": "jest",
+    "audit": "node scripts/audit-check.mjs",
     "prepare": "husky || true"
   },
   "lint-staged": {
