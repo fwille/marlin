@@ -1,0 +1,1 @@
+The location picker map now shows your current GPS position as a blue dot, so you can compare it against the pin you're placing. Replaces the GPS accuracy number shown in 1.2.1.

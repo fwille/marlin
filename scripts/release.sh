@@ -25,8 +25,41 @@ CURRENT_VERSION=$(node -p "require('./app.json').expo.version")
 CURRENT_CODE=$(node -p "require('./app.json').expo.android.versionCode")
 NEW_CODE=$((CURRENT_CODE + 1))
 
+# fdroidserver is needed to canonicalize the recipe at the end, and its
+# ruamel.yaml dependency backs scripts/vercodes.py just below.
+command -v fdroid >/dev/null 2>&1 || pip install fdroidserver --quiet
+
+# Release notes are looked up by the versionCode of the *published APK*, not by
+# app.json's versionCode. VercodeOperation derives one APK versionCode per ABI
+# (11 -> 111, 112), and fdroidserver's update.py matches a changelog file against
+# each Build entry's versionCode (plus CurrentVersionCode) — so a file named after
+# app.json's code matches nothing and the F-Droid client shows no "What's New".
+# That is exactly what happened from 1.1.3 (when the ABI split introduced
+# VercodeOperation) through 1.2.2. Write the same notes under every derived code.
+mapfile -t NEW_VERCODES < <(python3 scripts/vercodes.py "$NEW_CODE")
+if [[ ${#NEW_VERCODES[@]} -eq 0 ]]; then
+  echo "Error: could not derive versionCodes from the recipe's VercodeOperation" >&2
+  exit 1
+fi
+
+CHANGELOGS=()
+for VC in "${NEW_VERCODES[@]}"; do
+  CHANGELOGS+=("metadata/en-US/changelogs/${VC}.txt")
+done
+# The highest derived code becomes CurrentVersionCode, so treat it as the source
+# of truth and fan it out to the others once its content is settled.
+CHANGELOG=${CHANGELOGS[-1]}
+
+# Transitional: earlier releases documented the app.json-code filename. If notes
+# were hand-written under that name, adopt them rather than silently ignoring them.
+LEGACY_CHANGELOG="metadata/en-US/changelogs/${NEW_CODE}.txt"
+if [[ -s "$LEGACY_CHANGELOG" && ! -s "$CHANGELOG" ]]; then
+  echo "→ Adopting hand-written $LEGACY_CHANGELOG (F-Droid keys notes by APK versionCode)"
+  cp "$LEGACY_CHANGELOG" "$CHANGELOG"
+  rm "$LEGACY_CHANGELOG"
+fi
+
 # Generate release notes if not already written
-CHANGELOG="metadata/en-US/changelogs/${NEW_CODE}.txt"
 if [[ ! -f "$CHANGELOG" ]] || [[ ! -s "$CHANGELOG" ]]; then
   echo "→ Generating release notes…"
   LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
@@ -65,7 +98,14 @@ Rules:
   fi
 fi
 
+# Every published ABI needs its own copy — F-Droid resolves notes per versionCode,
+# so without this the armeabi-v7a APK would show no release notes.
+for CL in "${CHANGELOGS[@]}"; do
+  [[ "$CL" == "$CHANGELOG" ]] || cp "$CHANGELOG" "$CL"
+done
+
 echo "→ $CURRENT_VERSION (versionCode $CURRENT_CODE) → $VERSION (versionCode $NEW_CODE)"
+echo "  release notes: ${CHANGELOGS[*]}"
 
 # Bump app.json
 node -e "
@@ -81,7 +121,7 @@ sed -i -E "s/versionCode [0-9]+/versionCode $NEW_CODE/" android/app/build.gradle
 sed -i -E "s/versionName \"[^\"]+\"/versionName \"$VERSION\"/" android/app/build.gradle
 
 # Commit app code first so we have the SHA to embed in the recipe
-git add app.json "metadata/en-US/changelogs/${NEW_CODE}.txt" android/app/build.gradle
+git add app.json "${CHANGELOGS[@]}" android/app/build.gradle
 git commit -m "chore: bump version to $VERSION"
 COMMIT_SHA=$(git rev-parse HEAD)
 
@@ -105,31 +145,12 @@ git tag "v$VERSION"
 # rewrites `gradle: [yes]` into `gradle: [true]`, which fdroidserver's own build
 # code then reads as flavor "True" and runs the nonexistent `assembleTrueRelease`
 # gradle task — breaking every build entry in the file, not just the new one.
-command -v fdroid >/dev/null 2>&1 || pip install fdroidserver --quiet
 python3 - <<EOF
-import ast, copy
+import copy, sys
 import ruamel.yaml
 
-def _eval_node(node):
-    if isinstance(node, ast.Constant) and isinstance(node.value, int):
-        return node.value
-    if isinstance(node, ast.BinOp):
-        l, r = _eval_node(node.left), _eval_node(node.right)
-        ops = {ast.Add: lambda a,b: a+b, ast.Sub: lambda a,b: a-b,
-               ast.Mult: lambda a,b: a*b, ast.FloorDiv: lambda a,b: a//b,
-               ast.Mod: lambda a,b: a%b}
-        if type(node.op) in ops:
-            return ops[type(node.op)](l, r)
-    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.USub):
-        return -_eval_node(node.operand)
-    raise ValueError(f"Unsafe expression node: {ast.dump(node)}")
-
-def vcode(op, code):
-    # VercodeOperation is always simple arithmetic like '%c * 10 + 1'.
-    # Evaluate without eval() by walking the AST directly.
-    expr = op.replace('%c', str(int(code)))
-    tree = ast.parse(expr, mode='eval')
-    return _eval_node(tree.body)
+sys.path.insert(0, 'scripts')
+from vercodes import apply as vcode  # shares the VercodeOperation arithmetic with the changelog step
 
 path = 'metadata/com.marlinid.marlin.yml'
 yaml = ruamel.yaml.YAML(typ='rt')
@@ -152,9 +173,11 @@ for op, entry in zip(operations, current_entries):
     new_entry['versionName'] = '${VERSION}'
     new_entry['versionCode'] = vcode(op, new_code)
     new_entry['commit'] = '${COMMIT_SHA}'
-    # prebuild's `sed ... versionCode $$VERCODE$$` uses fdroidserver's own
+    # prebuild's versionCode sed already uses fdroidserver's own VERCODE
     # template placeholder (substituted at build time from this entry's
     # versionCode field), so no text-rewriting is needed here.
+    # NB: this heredoc is unquoted so the shell expands VERSION/COMMIT_SHA
+    # below — keep backticks and dollar signs out of it or they get evaluated.
     recipe['Builds'].append(new_entry)
 
 recipe['CurrentVersion'] = '${VERSION}'

@@ -82,8 +82,12 @@ android/                      Committed bare-workflow output of `expo prebuild` 
 metadata/
   com.marlinid.marlin.yml     F-Droid recipe — build instructions, scanignore/scandelete, NDK version
   en-US/
-    changelogs/{versionCode}.txt  Per-version release notes displayed in F-Droid (plain text, ≤500 chars).
-                                  The release script auto-generates a draft via Claude CLI if missing.
+    changelogs/{apkVersionCode}.txt  Per-version release notes shown as "What's New" in F-Droid
+                                  (plain text, ≤500 chars). Named after the **published APK**
+                                  versionCode (the VercodeOperation-derived 111/112), NOT app.json's
+                                  versionCode — see Release notes below. The release script
+                                  auto-generates a draft via Claude CLI if missing and writes one
+                                  copy per ABI.
     full_description.txt / short_description.txt / images/   Store listing copy and screenshots
 ```
 
@@ -171,7 +175,7 @@ Three other external APIs are layered on top, all optional and gated so the app 
 ```
 
 The script:
-1. Checks for `metadata/en-US/changelogs/{newVersionCode}.txt`. If missing, calls `npx @anthropic-ai/claude-code -p` with the git log since the last tag to generate a draft, then pauses for review. Write the file yourself beforehand to skip generation.
+1. Checks for `metadata/en-US/changelogs/{apkVersionCode}.txt` — one per ABI (see Release notes below). If missing, calls `npx @anthropic-ai/claude-code -p` with the git log since the last tag to generate a draft, then pauses for review, then copies it to every derived versionCode. Write the highest-numbered file yourself beforehand to skip generation.
 2. Bumps `app.json` (version + versionCode) and `android/app/build.gradle` (so F-Droid `checkupdates` can read the version without running `expo prebuild`).
 3. Commits the version bump, then captures the commit SHA and appends new build entries to `metadata/com.marlinid.marlin.yml` — one per `VercodeOperation` entry (currently two: armeabi-v7a and arm64-v8a), using the commit SHA (not the tag name) as `commit:`. Runs `fdroid rewritemeta` locally afterward so the committed recipe never drifts from canonical format.
 4. Commits the recipe separately, tags, and pushes to GitHub.
@@ -185,6 +189,17 @@ After tagging, **check the fork's pipeline** (`gitlab.com/fiwille/fdroiddata/-/p
 If the fork pipeline fails, **don't hand-patch the recipe file directly** — fix `scripts/release.sh` if the bug is in how it generates entries (most past bugs were here: see ADR-0004), or use `ruamel.yaml.YAML(typ='rt')` for any manual recipe edit (never plain PyYAML — it corrupts `gradle: [yes]`, see [F-Droid distribution](#f-droid-distribution)). After any manual fix, push to *both* GitHub (source of truth) and the fork (SSH), or the next tag's sync will silently overwrite one with the other.
 
 Node.js is installed via `apt-get install -y -t forky nodejs npm` in the recipe's `sudo:` block (Debian `forky`), not a pinned tarball URL/hash — there's nothing to manually bump for a Node update unless the target Debian suite itself changes.
+
+### Release notes ("What's New")
+
+**Changelog files must be named after the published APK versionCode, not `app.json`'s.** `VercodeOperation` derives one APK versionCode per ABI from the `app.json` value (`10` → `101` armeabi-v7a, `102` arm64-v8a), and fdroidserver's `update.py` resolves release notes two ways, both keyed on the *derived* code:
+
+- `<CurrentVersionCode>.txt` → app-level `whatsNew`, which `index.py` attaches only to the version matching the **last** `Builds` entry.
+- `<Build versionCode>.txt` → per-build `whatsNew`, attached to that exact version.
+
+So each release needs a file per derived code (`111.txt` **and** `112.txt`), which `scripts/release.sh` now writes automatically; `scripts/vercodes.py` holds the shared `VercodeOperation` arithmetic. A file named after `app.json`'s versionCode matches neither rule and is silently ignored — which is why no release from 1.1.3 (when the ABI split introduced `VercodeOperation`) through 1.2.2 showed any release notes in the F-Droid client, despite the files existing.
+
+Notes are read from the source checkout at that build's commit, so the file must be committed **at the tagged release commit** — the release script includes it in the version-bump commit it tags. There is no way to retroactively add notes to an already-published version; a fix only takes effect from the next release. Files `1.txt`–`5.txt` predate the ABI split (when versionCode *was* the `app.json` value) and are correct as-is.
 
 ## F-Droid distribution
 

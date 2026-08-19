@@ -1,0 +1,1 @@
+Fixed the app icon showing as a blank shape on Android's themed icons. The Nearby tab now shows your GPS accuracy, so you can tell how precise your current location fix is.
