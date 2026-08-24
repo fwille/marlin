@@ -21,6 +21,8 @@ export interface INatTaxon {
   observations_count?: number;
   rank?: string;
   iconic_taxon_name?: string;
+  /** Full ancestry, root-first. Used to bucket a species into a MarineGroup. */
+  ancestor_ids?: number[];
   wikipedia_url?: string;
   wikipedia_summary?: string;
   description?: string;

@@ -16,19 +16,65 @@ const IUCN_STATUS_NAMES: Record<string, string> = {
 
 // iNaturalist only supports a single taxon_id per request — multiple values via
 // taxon_id[] are silently ignored. We fan out into parallel requests and merge.
+//
+// The groups are deliberately mutually disjoint, so any given species matches at
+// most one. That is what lets the sightings map reuse them as legend buckets
+// (see marineGroupFor) instead of iNaturalist's `iconic_taxon_name`, which is a
+// short fixed list that reports plain "Animalia" for sharks, jellies and stars.
+//
 // Crustacea (85493) excluded: it contains terrestrial woodlice. Decapoda (47186)
 // covers only crabs, lobsters, shrimp and is almost entirely aquatic/marine.
-const MARINE_TAXON_IDS = [
-  47178,  // Actinopterygii — ray-finned fish
-  47273,  // Chondrichthyes — sharks, rays, chimaeras
-  47549,  // Echinodermata — starfish, sea urchins, sea cucumbers
-  47459,  // Cephalopoda — octopus, squid, nautilus, cuttlefish
-  47534,  // Cnidaria — jellyfish, corals, anemones, hydroids (was wrongly 51508=Ctenophora)
-  47186,  // Decapoda — crabs, lobsters, shrimp (replaces broad Crustacea)
-  152871, // Cetacea — whales, dolphins, porpoises (infraorder, NOT 152870 which is Artiodactyla)
-  46306,  // Sirenia — manatees, dugongs
-  372234, // Chelonioidea — sea turtles
+// Mollusca (47115) excluded for the same reason — land snails and slugs — so the
+// two groups divers actually log are listed on their own. Hydrophiinae (492346)
+// excluded likewise: see the Sea Snakes entries below.
+export interface MarineGroup {
+  /** iNaturalist taxon ID: both the search root and the map-legend bucket. */
+  id: number;
+  /** Legend label on the sightings map. Groups sharing a label merge into one entry. */
+  label: string;
+}
+
+export const MARINE_GROUPS: MarineGroup[] = [
+  { id: 47178,  label: 'Fish' },                // Actinopterygii — ray-finned fish
+  { id: 47273,  label: 'Sharks & Rays' },       // Chondrichthyes — sharks, rays, chimaeras
+  { id: 47549,  label: 'Starfish & Urchins' },  // Echinodermata — starfish, urchins, sea cucumbers
+  { id: 47459,  label: 'Octopus & Squid' },     // Cephalopoda — octopus, squid, nautilus, cuttlefish
+  { id: 47113,  label: 'Sea Slugs' },           // Nudibranchia — nudibranchs
+  { id: 47534,  label: 'Jellyfish & Corals' },  // Cnidaria — jellyfish, corals, anemones, hydroids
+  { id: 51508,  label: 'Comb Jellies' },        // Ctenophora — a separate phylum from Cnidaria, not a
+                                                // subgroup: scoping to 47534 finds no Mnemiopsis leidyi
+  { id: 47186,  label: 'Crabs & Shrimp' },      // Decapoda — crabs, lobsters, shrimp
+  { id: 152871, label: 'Marine Mammals' },      // Cetacea — whales, dolphins, porpoises (infraorder,
+                                                // NOT 152870 which is Artiodactyla)
+  { id: 46306,  label: 'Marine Mammals' },      // Sirenia — manatees, dugongs
+  { id: 372234, label: 'Sea Turtles' },         // Chelonioidea — sea turtles
+  { id: 1630892, label: 'Sea Snakes' },         // Hydrophiini — true sea snakes. NOT the parent
+                                                // Hydrophiinae (492346): that subfamily is mostly
+                                                // terrestrial Australian elapids (brown snakes,
+                                                // tiger snakes) — same trap as Crustacea above.
+  { id: 492347, label: 'Sea Snakes' },          // Laticaudinae — sea kraits, a sibling of Hydrophiini
 ];
+
+export const MARINE_TAXON_IDS = MARINE_GROUPS.map(g => g.id);
+
+/**
+ * The marine group a taxon belongs to, matched against its own ID and ancestry.
+ *
+ * `iconic_taxon_name` cannot do this job: iNaturalist's iconic taxa are a short
+ * fixed list, and everything outside it — sharks, jellyfish, starfish, comb
+ * jellies, sea snakes — reports plain "Animalia". Matching on `ancestor_ids`
+ * uses the same taxon IDs the search already fans out over, so every species
+ * reachable through search lands in a real group. Returns undefined for taxa
+ * outside all of them (e.g. a life-list entry predating a group's addition).
+ */
+export function marineGroupFor(
+  taxon?: { id?: number; ancestor_ids?: number[] }
+): MarineGroup | undefined {
+  if (!taxon) return undefined;
+  const chain = new Set<number>(taxon.ancestor_ids ?? []);
+  if (taxon.id !== undefined) chain.add(taxon.id);
+  return MARINE_GROUPS.find(g => chain.has(g.id));
+}
 
 async function apiFetch<T>(endpoint: string, params: URLSearchParams): Promise<T> {
   const res = await fetch(`${BASE}${endpoint}?${params}`);
