@@ -3,6 +3,17 @@ name: F-Droid sync
 on:
   push:
     tags: ['v[0-9]*.[0-9]*.[0-9]*']
+  # Lets a release be re-synced without moving its tag — the tag must keep
+  # pointing at the version-bump commit so the checkupdates bot resolves the
+  # same commit: our recipe entries carry.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to sync (e.g. v1.3.0)'
+        required: true
+
+env:
+  RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
 
 jobs:
   sync:
@@ -10,12 +21,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # Checks out the branch head, NOT the tag. release.sh tags the version-bump
+      # commit and commits the recipe immediately after, pushing both together —
+      # so the tag itself still carries the *previous* release's recipe. Checking
+      # out the tag made this job copy a stale recipe, find no diff, and silently
+      # report "nothing to push" while the fork fell behind (the ADR-0004 trap).
       - uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Canonicalize recipe with rewritemeta
         run: |
           pip install fdroidserver --quiet
           fdroid rewritemeta com.marlinid.marlin
+
+      # A release tag whose recipe does not name that release means the checkout
+      # raced the recipe commit, or release.sh failed partway. Fail loudly rather
+      # than pushing nothing and reporting success.
+      - name: Verify recipe matches the release tag
+        run: |
+          RECIPE_VERSION=$(python3 -c "import ruamel.yaml; print(ruamel.yaml.YAML(typ='rt').load(open('metadata/com.marlinid.marlin.yml'))['CurrentVersion'])")
+          if [ "v${RECIPE_VERSION}" != "${RELEASE_TAG}" ]; then
+            echo "::error::Recipe CurrentVersion ${RECIPE_VERSION} does not match tag ${RELEASE_TAG}"
+            exit 1
+          fi
 
       - name: Push recipe to fdroiddata fork
         env:
@@ -32,6 +61,6 @@ jobs:
           if git diff --staged --quiet; then
             echo "Recipe unchanged — nothing to push"
           else
-            git commit -m "Update com.marlinid.marlin to ${GITHUB_REF_NAME}"
+            git commit -m "Update com.marlinid.marlin to ${RELEASE_TAG}"
             git push
           fi
