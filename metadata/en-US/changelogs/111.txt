@@ -1,0 +1,3 @@
+- Previously missing marine species are now covered by search (e.g. sea snakes, nudibranchs and comb jellies)
+- Pins on the sightings map are now properly grouped by species
+- Fixed the sightings map flashing repeatedly when opened
