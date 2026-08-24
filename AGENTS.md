@@ -17,4 +17,6 @@ Then read the full file and verify:
 - `commit:` fields point to the intended SHA, not a tag name
 - Each entry's `prebuild:` versionCode-stamping step uses `$$VERCODE$$` (fdroidserver's own template placeholder), not a hardcoded number that could go stale when copied to a new entry
 
+The release tag points at the version-bump commit, and the recipe lands in the commit *after* it. Never read the recipe "at the tag" — you will get the previous release's copy. `fdroid-sync` checks out `main` for this reason; to re-sync a release without moving its tag, run `gh workflow run fdroid-sync.yml --ref main -f tag=vX.Y.Z`.
+
 When pushing to the fdroiddata fork (`gitlab.com/fiwille/fdroiddata`), always push to the `com.marlinid.marlin` branch — never to `master`. This fork does **not** feed the official `fdroid/fdroiddata` repo automatically except via F-Droid's own `checkupdates` bot (which watches GitHub tags directly and ignores the fork). A green fork pipeline means the recipe is buildable, not that any release is live — see ADR-0004 before assuming otherwise.

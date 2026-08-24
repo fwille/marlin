@@ -161,7 +161,15 @@ Base URL: `https://api.inaturalist.org/v1`
 | `GET /observations` | Recent observations for a taxon (map pins, distribution) |
 | `GET /observations/histogram` | Monthly seasonality histogram for a taxon |
 
-Marine taxa filter: a curated `MARINE_TAXON_IDS` list of `taxon_id`s (`src/api/inaturalist.ts`) — fish, sharks & rays, cephalopods, cnidarians, echinoderms, decapods, cetaceans, sirenians, sea turtles. iNaturalist ignores repeated `taxon_id[]` params, so each ID is fanned out as a parallel request and results are merged by taxon. Comments in the file explain why specific IDs were chosen over broader (but partly terrestrial) groupings like Crustacea or Mammalia.
+Marine taxa filter: a curated `MARINE_GROUPS` list (`src/api/inaturalist.ts`), each entry a `taxon_id` plus the label the sightings map uses as its legend bucket; `MARINE_TAXON_IDS` derives from it. iNaturalist ignores repeated `taxon_id[]` params, so each ID is fanned out as a parallel request and results are merged by taxon. Comments in the file explain why specific IDs were chosen over broader (but partly terrestrial) groupings like Crustacea or Mammalia.
+
+**This list is the only thing Search and Nearby can see.** A species in no group is not merely ranked low — it is unreachable, with no error and no empty-state hint. That is how comb jellies (Ctenophora, a phylum *separate* from Cnidaria, not a subgroup) stayed unfindable until a user reported it. When adding a group:
+
+- **Check the candidate's own top species before adding it, not just its name.** `Hydrophiinae` sounds like "sea snakes" but is mostly terrestrial Australian elapids (brown snakes, tiger snakes); the marine taxa are its tribe `Hydrophiini` plus the sibling `Laticaudinae`. Same trap as Crustacea/woodlice.
+- Groups must stay **mutually disjoint** — `marineGroupFor` returns the first match, and the map legend depends on one species landing in exactly one bucket. Two groups may share a `label` to merge in the legend (Cetacea + Sirenia → "Marine Mammals").
+- Add a colour for the new ID in `GROUP_COLORS` in **both** `SightingsMap.tsx` and `SightingsMap.web.tsx`.
+
+**Never group taxa by `iconic_taxon_name`.** iNaturalist's iconic taxa are a short fixed list; sharks, jellyfish, starfish, comb jellies and sea snakes all report plain `Animalia`. The map legend keyed on it for months and silently collapsed almost every pin into a grey "Other". Match on `ancestor_ids` via `marineGroupFor` instead.
 
 Three other external APIs are layered on top, all optional and gated so the app degrades gracefully without them:
 - **Wikipedia** (`getWikipediaSummary`) — calls `en.wikipedia.org/w/api.php` directly (not iNaturalist) for the species-detail summary blurb, using the title parsed out of the taxon's `wikipedia_url`.
@@ -181,6 +189,14 @@ The script:
 4. Commits the recipe separately, tags, and pushes to GitHub.
 
 Pushing the tag triggers the `fdroid-sync` GHA workflow, which re-canonicalises the recipe with `fdroid rewritemeta` and pushes it to the `fiwille/fdroiddata` GitLab fork automatically — **for a normal release this is the only sync that happens, and it's automatic; no manual fork push is needed.** The manual SSH-push process described under [F-Droid distribution](#f-droid-distribution) is only for recipe fixes made *between* tagged releases (exactly what this session spent a long time on, after the fork had silently fallen six weeks behind GitHub — see ADR-0004).
+
+**The tag does not contain the recipe update.** `release.sh` tags the version-bump commit and commits the recipe in the *next* commit, pushing both together. So anything that reads the recipe "at the tag" gets the **previous** release's recipe. `fdroid-sync` therefore checks out `main`, never the tag — when it checked out the tag it copied a stale recipe, found no diff, and reported `Recipe unchanged — nothing to push` **while exiting green**, leaving the fork silently behind (v1.3.0, the first release after the tagging order changed). A `Verify recipe matches the release tag` step now fails the job instead of reporting a false success.
+
+To re-sync a release without moving its tag (the tag must keep pointing at the version-bump commit so the checkupdates bot resolves the same `commit:` our recipe entries carry):
+
+```bash
+gh workflow run fdroid-sync.yml --ref main -f tag=v1.3.0
+```
 
 **Tagging and pushing does not put the release in front of users.** `fdroid-sync` only updates the pre-flight fork; going live on F-Droid itself happens separately, either automatically via F-Droid's own `checkupdates` bot (which watches this repo's GitHub tags directly and has handled past releases with zero human action) or via a manually merged MR from the fork into the official `fdroid/fdroiddata` repo. Don't assume a tag push means the release shipped.
 
@@ -223,7 +239,7 @@ Key recipe constraints:
 - **`scandelete: node_modules`**: removes all of `node_modules` before the binary scan; `scanignore` entries must therefore point to files that exist after the build (validated by F-Droid) but are acceptable prebuilts. **The binary scan runs before `scandelete`** — `scanignore` entries for paths inside `node_modules/` are required even when `scandelete: node_modules` is present.
 - **`gradle: [yes]`**: F-Droid's documented "no product flavors" idiom — only works if the loaded value is the literal *string* `'yes'`. Never edit the recipe with plain PyYAML (`yaml.safe_load`/`safe_dump`): its YAML-1.1 resolver reads bare `yes` as a boolean, and round-tripping silently corrupts it into `true`/`'true'`, which F-Droid's build code reads as a bogus flavor name and tries to run a nonexistent `assemble*Release` task. `scripts/release.sh` uses `ruamel.yaml` (YAML 1.2, matching `fdroidserver` itself) for exactly this reason.
 - **`$$VERCODE$$`**: a real `fdroidserver` template placeholder (see `common.py`), substituted per build entry from its own `versionCode` field at build time. Use it in `prebuild:` sed commands instead of a hardcoded version number — avoids ever needing to remember to update a copied value when cloning a Build entry for a new release.
-- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. The `fdroid-sync` GHA runs `rewritemeta` automatically on each tag push, and `scripts/release.sh` also runs it locally before committing. Recipe fixes pushed **between** releases must still be manually pushed to fdroiddata via SSH: `git clone -b com.marlinid.marlin git@gitlab.com:fiwille/fdroiddata.git`, apply the change, commit, and push — skipping this is exactly how the GitLab fork fell six weeks behind GitHub, so that the next tag's sync dumped a huge, confusing accumulated diff onto it all at once (ADR-0004).
+- **`rewritemeta`**: F-Droid's CI reformats the YAML canonically — any committed form that differs will fail the pipeline. The `fdroid-sync` GHA runs `rewritemeta` automatically on each tag push, and `scripts/release.sh` also runs it locally before committing. Recipe fixes made **between** releases reach the fork by dispatching the workflow against the last tag (`gh workflow run fdroid-sync.yml --ref main -f tag=vX.Y.Z`), or by pushing to fdroiddata via SSH: `git clone -b com.marlinid.marlin git@gitlab.com:fiwille/fdroiddata.git`, apply the change, commit, and push — skipping this is exactly how the GitLab fork fell six weeks behind GitHub, so that the next tag's sync dumped a huge, confusing accumulated diff onto it all at once (ADR-0004).
 
 ## Running the project
 
@@ -242,7 +258,7 @@ Two workflows in `.github/workflows/`:
 - **`ci.yml`** — runs on every push/PR to `main`: `expo lint` → `tsc --noEmit` → `jest --coverage` → `npm run audit`. Coverage thresholds: 55% statements/branches/lines, 60% functions (measured over `src/api/`, `src/store/`, `src/types/`). Test files are excluded from `tsc` — they're type-checked by jest-expo's Babel transform during `npm test`.
 
   The audit step runs **last** and goes through `scripts/audit-check.mjs`, not `npm audit` directly. npm has no way to ignore a single advisory, so one unpatched upstream advisory would otherwise pin CI red forever — and while audit ran *first*, it also skipped lint/typecheck/tests whenever it tripped. The script fails on any high/critical advisory except those in its `ALLOWLIST`, and additionally fails if an allowlisted entry stops being reported, so suppressions can't go stale. Each entry records why it's safe and what would let it be removed. Currently allowlisted: the two `image-size` advisories (`GHSA-w3rx-r6r6-pgpr`, `GHSA-5p2g-fcmc-qvqq`), which have **no published fix** — the vulnerable range is `<=2.0.2` and 2.0.2 is the latest release. It reaches us only via `expo > @expo/metro > metro` at bundle time, and metro isn't shipped in the APK.
-- **`fdroid-sync.yml`** — triggers on any `v*.*.*` tag push. Runs `fdroid rewritemeta` to canonicalize the recipe YAML, then clones `gitlab.com/fiwille/fdroiddata` via a `GITLAB_TOKEN` secret and pushes the updated recipe, which triggers the F-Droid build pipeline. No manual GitLab interaction needed after tagging.
+- **`fdroid-sync.yml`** — triggers on any `v*.*.*` tag push, or via `workflow_dispatch` with a `tag` input for re-syncing. **Checks out `main`, not the tag** — the tag predates the recipe commit (see Releasing). Runs `fdroid rewritemeta`, asserts the recipe's `CurrentVersion` matches the tag, then clones `gitlab.com/fiwille/fdroiddata` via a `GITLAB_TOKEN` secret and pushes the updated recipe, which triggers the F-Droid build pipeline. No manual GitLab interaction needed after tagging.
 
 ### Pre-commit hooks
 `husky` + `lint-staged`: runs `eslint --fix` on staged `.ts`/`.tsx` files before each commit. Installed automatically via the `prepare` npm script on `npm install`. Skipped in CI automatically by husky.
